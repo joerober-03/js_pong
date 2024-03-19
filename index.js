@@ -18,7 +18,10 @@ let ball = {
     xPos : (board_width / 2) - (ball_width / 2),
     yPos : (board_height / 2) - (ball_height / 2),
     velocityY : 0,
-    velocityX : ball_velocity
+    velocityX : 0,
+    velocityXTmp : 0,
+    velocityYTmp : 0,
+    pause : 0
 }
 
 let player1 = {
@@ -26,7 +29,8 @@ let player1 = {
     yPos : board_height / 2,
     width : player_width,
     height : player_height,
-    velocityY : playerVelocity
+    velocityY : playerVelocity,
+    score : 0
 }
 
 let player2 = {
@@ -34,7 +38,8 @@ let player2 = {
     yPos : board_height / 2,
     width : player_width,
     height : player_height,
-    velocityY : playerVelocity
+    velocityY : playerVelocity,
+    score : 0
 }
 
 window.onload = function() {
@@ -53,12 +58,21 @@ window.onload = function() {
     //middle_line
     fill_middle_lines();
 
-    let ran = Math.floor(Math.random() * 2);
-    if (ran == 0)
-        ball.velocityX *= -1;
-    ball.velocityY = Math.floor(Math.random() * 11) - 5;
+    //score
+    context.font = "48px serif";
+    context.fillText(player1.score, 10, 50);
+
+    context.fillText(player2.score, 200, 50);
+
     //ball
     context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
+
+    let ran = Math.floor(Math.random() * 2);
+    let tmp = ball_velocity;
+    if (ran == 0)
+        tmp *= -1;
+    setTimeout(() => { ball.velocityY = Math.floor(Math.random() * 11) - 5; }, 500);
+    setTimeout(() => { ball.velocityX = tmp; }, 500);
 
     window.requestAnimationFrame(gameLoop);
     document.addEventListener("keydown", movePlayer);
@@ -81,6 +95,11 @@ function gameLoop() {
 
     //middle_line
     fill_middle_lines();
+
+    //score
+    context.fillText(player1.score, 100, 50);
+
+    context.fillText(player2.score, board_width - 130, 50);
 
     //ball
     changeBallVelocity();
@@ -109,7 +128,7 @@ function changeBallVelocity()
     {
         if (ball.yPos + ball.velocityY + ball.height > player2.yPos - 5 - player2.height / 2 && ball.yPos + ball.velocityY + ball.height <= player2.yPos + 5 + player2.height - player2.height / 2)
         {
-            ball.velocityY = (((ball.yPos + ball.height / 2) + ball.velocityY) - (player2.yPos + player2.height / 2)) / player2.height;
+            ball.velocityY = ((ball.yPos) - (player2.yPos)) / 5;
             ball.velocityX *= -1;
             if (ball.velocityX < 0)
                 ball.velocityX -= 0.2;
@@ -121,7 +140,7 @@ function changeBallVelocity()
     {
         if (ball.yPos + ball.velocityY + ball.height > player1.yPos - 5 - player1.height / 2 && ball.yPos + ball.velocityY + ball.height <= player1.yPos + 5 + player1.height - player1.height / 2)
         {
-            ball.velocityY = (((ball.yPos + ball.height / 2) + ball.velocityY) - (player1.yPos + player1.height / 2)) / player1.height;
+            ball.velocityY = ((ball.yPos) - (player1.yPos))/ 5;
             ball.velocityX *= -1;
             if (ball.velocityX < 0)
                 ball.velocityX -= 0.2;
@@ -131,6 +150,10 @@ function changeBallVelocity()
     }
     if (!(ball.xPos + ball.velocityX + ball.width / 2 > 0 && ball.xPos + ball.velocityX + ball.width / 2 < board_width))
     {
+        if (!(ball.xPos + ball.velocityX + ball.width / 2 > 0))
+            player2.score++;
+        else
+            player1.score++;
         ball.xPos = (board_width / 2) - (ball_width / 2);
         ball.yPos = (board_height / 2) - (ball_height / 2);
         let ran = Math.floor(Math.random() * 2);
@@ -138,6 +161,12 @@ function changeBallVelocity()
         if (ran == 0)
             ball.velocityX *= -1;
         ball.velocityY = Math.floor(Math.random() * 11) - 5;
+        ball.velocityXTmp = ball.velocityX;
+        ball.velocityYTmp = ball.velocityY;
+        ball.velocityX = 0;
+        ball.velocityY = 0;
+        setTimeout(() => { ball.velocityY = ball.velocityYTmp; }, 500);
+        setTimeout(() => { ball.velocityX = ball.velocityXTmp; }, 500);
     }
 }
 
@@ -146,19 +175,19 @@ function movePlayer(e)
 
     if (e.key == 'w')
     {
-        player1.velocityY = -9; 
+        player1.velocityY = -11; 
     }
     if (e.key == 's')
     {
-        player1.velocityY = 9;
+        player1.velocityY = 11;
     }
     if (e.key == 'ArrowUp')
     {
-        player2.velocityY = -9; 
+        player2.velocityY = -11; 
     }
     if (e.key == 'ArrowDown')
     {
-        player2.velocityY = 9;
+        player2.velocityY = 11;
     }
     // if (e.key == 'q')
     // {
