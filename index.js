@@ -10,7 +10,7 @@ let playerVelocity = 0;
 //balling
 let ball_width = 15;
 let ball_height = 15;
-let ball_velocity = 20;
+let ball_velocity = 10;
 
 let ball = {
     width : ball_width,
@@ -77,10 +77,10 @@ window.onload = function() {
         tmp *= -1;
     }
     ball.velocityX = tmp;
-    if (ran == 0)
-        makeBot1Prediction();
-    else
+    if (ran == 1)
         makeBot2Prediction();
+    // else
+    //     makeBot1Prediction();
     ball.velocityX = 0;
     ball.velocityY = 0;
     setTimeout(() => { ball.velocityY = tmp2; }, 500);
@@ -96,15 +96,15 @@ function gameLoop() {
 
     context.clearRect(0, 0, board.width, board.height);
     //bot1 movement
-    if (player1.prediction >= player1.yPos && player1.prediction <= player1.yPos + player1.height || player1.prediction == -1)
-        player1.velocityY = 0;
-    else
-    {
-        if (player1.yPos + player1.height < player1.prediction)
-            player1.velocityY = 20;
-        if (player1.yPos > player1.prediction)
-            player1.velocityY = -20;
-    }
+    // if (player1.prediction >= player1.yPos && player1.prediction <= player1.yPos + player1.height || player1.prediction == -1)
+    //     player1.velocityY = 0;
+    // else
+    // {
+    //     if (player1.yPos + player1.height < player1.prediction)
+    //         player1.velocityY = 10;
+    //     if (player1.yPos > player1.prediction)
+    //         player1.velocityY = -10;
+    // }
     
     //player 1
     if (player1.yPos + player1.velocityY > 0 && player1.yPos + player1.velocityY + player1.height < board_height)
@@ -122,9 +122,9 @@ function gameLoop() {
     else
     {
         if (player2.yPos + player2.height < player2.prediction)
-            player2.velocityY = 20;
+            player2.velocityY = 10;
         if (player2.yPos > player2.prediction)
-            player2.velocityY = -20;
+            player2.velocityY = -10;
     }
 
     //player 2
@@ -174,10 +174,10 @@ function changeBallVelocity()
             ball.velocityY = ((ball.yPos + ball.height / 2) - (player2.yPos + player2.height / 2)) / 7;
             ball.velocityX *= -1;
             if (ball.velocityX < 0)
-                ball.velocityX -= 1;
+                ball.velocityX -= 0.5;
             else
-                ball.velocityX += 1;
-            makeBot1Prediction();
+                ball.velocityX += 0.5;
+            //makeBot1Prediction();
             play();
         }
     }
@@ -188,11 +188,11 @@ function changeBallVelocity()
             ball.velocityY = ((ball.yPos + ball.height / 2) - (player1.yPos + player1.height / 2)) / 7;
             ball.velocityX *= -1;
             if (ball.velocityX < 0)
-                ball.velocityX -= 1;
+                ball.velocityX -= 0.5;
             else
-                ball.velocityX += 1;
+                ball.velocityX += 0.5;
             makeBot2Prediction();
-            play2();
+            play();
         }
     }
     if (!(ball.xPos + ball.velocityX > 0 && ball.xPos + ball.velocityX + ball.width < board_width))
@@ -210,8 +210,8 @@ function changeBallVelocity()
             ball.velocityX *= -1;
         if (ball.velocityX > 0)
             makeBot2Prediction();
-        else
-            makeBot1Prediction();
+        //else
+        //    makeBot1Prediction();
         ball.velocityXTmp = ball.velocityX;
         ball.velocityYTmp = ball.velocityY;
         ball.velocityX = 0;
@@ -226,31 +226,20 @@ function movePlayer(e)
 
     if (e.key == 'w')
     {
-        player1.velocityY = -11; 
+        player1.velocityY = -10; 
     }
     if (e.key == 's')
     {
-        player1.velocityY = 11;
+        player1.velocityY = 10;
     }
     if (e.key == 'ArrowUp')
     {
-        player2.velocityY = -11; 
+        player2.velocityY = -10; 
     }
     if (e.key == 'ArrowDown')
     {
-        player2.velocityY = 11;
+        player2.velocityY = 10;
     }
-    // if (e.key == 'q')
-    // {
-    //     ball.velocityX -= 2;
-    //     ball.velocityY -= 2;
-    // }
-    // if (e.key == 'e')
-    // {
-    //     ball.velocityX += 2;
-    //     ball.velocityY += 2;
-    // }
-
 }
 
 function stopPlayer(e)
@@ -349,6 +338,10 @@ function makeBot2Prediction()
             {
                 ballcpy_velocityY *= -1;
                 ballcpy_yPos += ballcpy_velocityY;
+                if (ballcpy_velocityY < 0)
+                    yDistance = 0;
+                else
+                    yDistance = board_height;
             }
         }
         else
@@ -361,13 +354,16 @@ function makeBot2Prediction()
             {
                 ballcpy_velocityY *= -1;
                 ballcpy_yPos += ballcpy_velocityY;
+                if (ballcpy_velocityY < 0)
+                    yDistance = 0;
+                else
+                    yDistance = board_height;
             }
         }
 
     }
     let res = (board_width - ballcpy_xPos) / ballcpy_velocityX;
     player2.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
-    //console.log(player2.prediction);
 }
 
 function play() {
