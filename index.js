@@ -524,7 +524,7 @@ function makeBot2Prediction()
 }
 
 function play() {
-    var audio = new Audio('1.mp3');
+    var audio = new Audio('utils/1.mp3');
     audio.play();
 }
 // function play2() {
