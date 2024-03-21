@@ -43,13 +43,101 @@ let player2 = {
     prediction : -1
 }
 
+var stop = false;
+var gameMod = 0;
+var sound = false;
+
+function reset_board()
+{
+    gameMod = 0;
+    player2.xPos = board_width - player_width - 10;
+    player2.yPos = board_height / 2 - player_height / 2;
+    player2.width = player_width;
+    player2.height = player_height;
+    player2.velocityY = playerVelocity;
+    //player2.score = 0;
+    player2.prediction = -1;
+    player1.xPos = 10;
+    player1.yPos = board_height / 2 - player_height / 2;
+    player1.width = player_width;
+    player1.height = player_height;
+    player1.velocityY = playerVelocity;
+    //player1.score = 0;
+    player1.prediction = -1;
+    ball.width = ball_width;
+    ball.height = ball_height;
+    ball.xPos = (board_width / 2) - (ball_width / 2);
+    ball.yPos = (board_height / 2) - (ball_height / 2);
+    ball.velocityY = 0;
+    ball.velocityX = 0;
+    ball.velocityXTmp = 0;
+    ball.velocityYTmp = 0;
+}
+
+function sound_change()
+{
+    if (sound == false)
+        sound = true;
+    else
+        sound = false;
+}
+
+function stop_playing()
+{
+    reset_board();
+    player1.score = 0;
+    player2.score = 0;
+}
+
+function button1Init()
+{
+    reset_board();
+    player1.score = 0;
+    player2.score = 0;
+    gameMod = 1;
+    stop = false;
+    gameloopInit();
+    startAnimating(60);
+}
+
+function button2Init()
+{
+    reset_board();
+    player1.score = 0;
+    player2.score = 0;
+    gameMod = 2;
+    stop = false;
+    gameloopInit();
+    startAnimating(60);
+}
+
+function button3Init()
+{
+    reset_board();
+    player1.score = 0;
+    player2.score = 0;
+    gameMod = 3;
+    stop = false;
+    gameloopInit();
+    startAnimating(60);
+}
+
+var fpsInterval;
+var then;
+
+function startAnimating(fps) {
+    fpsInterval = 1000 / fps;
+    then = performance.now();
+    gameLoop();
+}
+
 window.onload = function() {
     let board = document.getElementById("board");
     board.width = board_width;
     board.height = board_height;
     context = board.getContext("2d");
-    context.fillStyle = "white";
 
+    context.fillStyle = "white";
     //player 1
     context.fillRect(player1.xPos, player1.yPos, player1.width, player1.height);
 
@@ -61,13 +149,17 @@ window.onload = function() {
 
     //score
     context.font = "48px serif";
-    context.fillText(player1.score, 10, 50);
+    context.fillText(player1.score, 100, 50);
 
-    context.fillText(player2.score, 200, 50);
+    context.fillText(player2.score, board_width - 130, 50);
 
     //ball
+    context.fillStyle = "white";
     context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
+}
 
+function gameloopInit()
+{
     let ran = Math.floor(Math.random() * 2);
     let tmp = ball_velocity;
     let tmp2 = Math.floor(Math.random() * 11) - 5;
@@ -77,16 +169,16 @@ window.onload = function() {
         tmp *= -1;
     }
     ball.velocityX = tmp;
-    if (ran == 1)
+    if (ran == 0 && gameMod == 3)
+        makeBot1Prediction();
+    else if (ran == 1 && (gameMod == 1 || gameMod == 3))
         makeBot2Prediction();
-    // else
-    //     makeBot1Prediction();
     ball.velocityX = 0;
     ball.velocityY = 0;
     setTimeout(() => { ball.velocityY = tmp2; }, 500);
     setTimeout(() => { ball.velocityX = tmp; }, 500);
 
-    window.requestAnimationFrame(gameLoop);
+    //window.requestAnimationFrame(gameLoop);
     document.addEventListener("keydown", movePlayer);
     document.addEventListener("keyup", stopPlayer);
 }
@@ -94,68 +186,92 @@ window.onload = function() {
 function gameLoop() {
     window.requestAnimationFrame(gameLoop);
 
-    context.clearRect(0, 0, board.width, board.height);
-    //bot1 movement
-    // if (player1.prediction >= player1.yPos && player1.prediction <= player1.yPos + player1.height || player1.prediction == -1)
-    //     player1.velocityY = 0;
-    // else
-    // {
-    //     if (player1.yPos + player1.height < player1.prediction)
-    //         player1.velocityY = 10;
-    //     if (player1.yPos > player1.prediction)
-    //         player1.velocityY = -10;
-    // }
-    
-    //player 1
-    if (player1.yPos + player1.velocityY > 0 && player1.yPos + player1.velocityY + player1.height < board_height)
-        player1.yPos += player1.velocityY;
-    else if (!(player1.yPos + player1.velocityY > 0))
-        player1.yPos = 2;
-    else
-        player1.yPos = board_height - player1.height - 2;
-    context.fillRect(player1.xPos, player1.yPos, player1.width, player1.height);
+    let now = performance.now();
+    let elapsed = now - then;
 
-    //bot2 movement
-
-    if (player2.prediction >= player2.yPos && player2.prediction <= player2.yPos + player2.height || player2.prediction == -1)
-        player2.velocityY = 0;
-    else
+    if (elapsed > fpsInterval && stop == false)
     {
-        if (player2.yPos + player2.height < player2.prediction)
-            player2.velocityY = 10;
-        if (player2.yPos > player2.prediction)
-            player2.velocityY = -10;
+        then = now - (elapsed % fpsInterval);
+
+        context.fillStyle = "white";
+        context.clearRect(0, 0, board.width, board.height);
+        //bot1 movement
+        if (gameMod == 3)
+        {
+            if (player1.prediction >= player1.yPos && player1.prediction <= player1.yPos + player1.height || player1.prediction == -1)
+                player1.velocityY = 0;
+            else
+            {
+                if (player1.yPos + player1.height < player1.prediction)
+                    player1.velocityY = 10;
+                if (player1.yPos > player1.prediction)
+                    player1.velocityY = -10;
+            }
+        }
+        
+        //player 1
+        if (player1.yPos + player1.velocityY > 0 && player1.yPos + player1.velocityY + player1.height < board_height)
+            player1.yPos += player1.velocityY;
+        else if (!(player1.yPos + player1.velocityY > 0))
+            player1.yPos = 2;
+        else
+            player1.yPos = board_height - player1.height - 2;
+        context.fillRect(player1.xPos, player1.yPos, player1.width, player1.height);
+
+        //bot2 movement
+        if (gameMod == 1 || gameMod == 3)
+        {
+            if (player2.prediction >= player2.yPos && player2.prediction <= player2.yPos + player2.height || player2.prediction == -1)
+                player2.velocityY = 0;
+            else
+            {
+                if (player2.yPos + player2.height < player2.prediction)
+                    player2.velocityY = 10;
+                if (player2.yPos > player2.prediction)
+                    player2.velocityY = -10;
+            }
+        }
+
+        //player 2
+        if (player2.yPos + player2.velocityY > 0 && player2.yPos + player2.velocityY + player2.height < board_height)
+            player2.yPos += player2.velocityY;
+        else if (!(player2.yPos + player2.velocityY > 0))
+            player2.yPos = 2;
+        else
+            player2.yPos = board_height - player2.height - 2;
+        context.fillRect(player2.xPos, player2.yPos, player2.width, player2.height);
+
+        //middle_line
+        fill_middle_lines();
+
+        //ball
+        changeBallVelocity();
+
+        //score
+        context.font = "48px serif";
+        context.fillText(player1.score, 100, 50);
+
+        context.fillText(player2.score, board_width - 130, 50);
+        if (stop == false)
+        {
+            ball.xPos += ball.velocityX;
+            ball.yPos += ball.velocityY;
+            context.fillStyle = "white";
+            context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
+        }
+        if (stop == true)
+        {
+            player1.score = 0;
+            player2.score = 0;
+        }
     }
-
-    //player 2
-    if (player2.yPos + player2.velocityY > 0 && player2.yPos + player2.velocityY + player2.height < board_height)
-        player2.yPos += player2.velocityY;
-    else if (!(player2.yPos + player2.velocityY > 0))
-        player2.yPos = 2;
-    else
-        player2.yPos = board_height - player2.height - 2;
-    context.fillRect(player2.xPos, player2.yPos, player2.width, player2.height);
-
-    //middle_line
-    fill_middle_lines();
-
-    //score
-    context.fillText(player1.score, 100, 50);
-
-    context.fillText(player2.score, board_width - 130, 50);
-
-    //ball
-    changeBallVelocity();
-    ball.xPos += ball.velocityX;
-    ball.yPos += ball.velocityY;
-    context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
 }
 
 function fill_middle_lines()
 {
     for (let i = 0; i < board_height; i += 4.2)
     {
-        context.fillStyle = "white";
+        context.fillStyle = "gray";
         context.fillRect(board_width / 2 - 5, i, 10, 30);
         i += 60;
     }
@@ -177,8 +293,10 @@ function changeBallVelocity()
                 ball.velocityX -= 0.5;
             else
                 ball.velocityX += 0.5;
-            //makeBot1Prediction();
-            play();
+            if (gameMod == 3)
+                makeBot1Prediction();
+            if (sound == true)
+                play();
         }
     }
     if (ball.xPos + ball.velocityX <= 11)
@@ -191,16 +309,36 @@ function changeBallVelocity()
                 ball.velocityX -= 0.5;
             else
                 ball.velocityX += 0.5;
-            makeBot2Prediction();
-            play();
+            if (gameMod == 1 || gameMod == 3)
+                makeBot2Prediction();
+                //setTimeout(() => { makeBot2Prediction(); }, 500);
+            if (sound == true)
+                play();
         }
     }
     if (!(ball.xPos + ball.velocityX > 0 && ball.xPos + ball.velocityX + ball.width < board_width))
     {
+        context.fillStyle = "white";
         if (!(ball.xPos + ball.velocityX > 0))
             player2.score++;
         else
             player1.score++;
+        if (player1.score == 5)
+        {
+            stop_playing();
+            context.font = "100px serif";
+            context.fillText("Player 1 won !", 325, 400);
+            stop = true;
+            return ;
+        }
+        if (player2.score == 5)
+        {
+            stop_playing();
+            context.font = "100px serif";
+            context.fillText("Player 2 won !", 330, 400);
+            stop = true;
+            return ;
+        }
         ball.xPos = (board_width / 2) - (ball_width / 2);
         ball.yPos = (board_height / 2) - (ball_height / 2);
         let ran = Math.floor(Math.random() * 2);
@@ -208,10 +346,10 @@ function changeBallVelocity()
         ball.velocityY = Math.floor(Math.random() * 11) - 5;
         if (ran == 0)
             ball.velocityX *= -1;
-        if (ball.velocityX > 0)
+        if (ball.velocityX > 0 && (gameMod == 1 || gameMod == 3))
             makeBot2Prediction();
-        //else
-        //    makeBot1Prediction();
+        else if (ball.velocityX < 0 && gameMod == 3)
+            makeBot1Prediction();
         ball.velocityXTmp = ball.velocityX;
         ball.velocityYTmp = ball.velocityY;
         ball.velocityX = 0;
@@ -224,41 +362,53 @@ function changeBallVelocity()
 function movePlayer(e)
 {
 
-    if (e.key == 'w')
+    if (gameMod == 1 || gameMod == 2)
     {
-        player1.velocityY = -10; 
+        if (e.key == 'w')
+        {
+            player1.velocityY = -10; 
+        }
+        if (e.key == 's')
+        {
+            player1.velocityY = 10;
+        }
     }
-    if (e.key == 's')
+    if (gameMod == 2)
     {
-        player1.velocityY = 10;
-    }
-    if (e.key == 'ArrowUp')
-    {
-        player2.velocityY = -10; 
-    }
-    if (e.key == 'ArrowDown')
-    {
-        player2.velocityY = 10;
+        if (e.key == 'ArrowUp')
+        {
+            player2.velocityY = -10; 
+        }
+        if (e.key == 'ArrowDown')
+        {
+            player2.velocityY = 10;
+        }
     }
 }
 
 function stopPlayer(e)
 {
-    if (e.key == 'w')
+    if (gameMod == 1 || gameMod == 2)
     {
-        player1.velocityY = 0;
+        if (e.key == 'w')
+        {
+            player1.velocityY = 0;
+        }
+        if (e.key == 's')
+        {
+            player1.velocityY = 0;
+        }
     }
-    if (e.key == 's')
+    if (gameMod == 2)
     {
-        player1.velocityY = 0;
-    }
-    if (e.key == 'ArrowUp')
-    {
-        player2.velocityY = 0;
-    }
-    if (e.key == 'ArrowDown')
-    {
-        player2.velocityY = 0;
+        if (e.key == 'ArrowUp')
+        {
+            player2.velocityY = 0;
+        }
+        if (e.key == 'ArrowDown')
+        {
+            player2.velocityY = 0;
+        }
     }
 }
 
@@ -307,7 +457,7 @@ function makeBot1Prediction()
     }
     let res = ballcpy_xPos / (ballcpy_velocityX * -1);
     player1.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
-    console.log(player2.prediction);
+    //console.log(player2.prediction);
 }
 
 function makeBot2Prediction()
