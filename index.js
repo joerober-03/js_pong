@@ -85,8 +85,11 @@ function sound_change()
 function stop_playing()
 {
     reset_board();
-    player1.score = 0;
-    player2.score = 0;
+    if (stop == false)
+    {
+        player1.score = 0;
+        player2.score = 0;
+    }
 }
 
 function button1Init()
@@ -203,9 +206,9 @@ function gameLoop() {
             else
             {
                 if (player1.yPos + player1.height < player1.prediction)
-                    player1.velocityY = 10;
+                    player1.velocityY = 20;
                 if (player1.yPos > player1.prediction)
-                    player1.velocityY = -10;
+                    player1.velocityY = -20;
             }
         }
         
@@ -226,9 +229,9 @@ function gameLoop() {
             else
             {
                 if (player2.yPos + player2.height < player2.prediction)
-                    player2.velocityY = 10;
+                    player2.velocityY = 20;
                 if (player2.yPos > player2.prediction)
-                    player2.velocityY = -10;
+                    player2.velocityY = -20;
             }
         }
 
