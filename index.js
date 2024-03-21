@@ -165,7 +165,9 @@ function gameloopInit()
 {
     let ran = Math.floor(Math.random() * 2);
     let tmp = ball_velocity;
-    let tmp2 = Math.floor(Math.random() * 11) - 5;
+    let tmp2 = 0;
+    while (tmp2 == 0)
+        tmp2 = Math.floor(Math.random() * 11) - 5;
     ball.velocityY = tmp2;
     if (ran == 0)
     {
@@ -346,7 +348,9 @@ function changeBallVelocity()
         ball.yPos = (board_height / 2) - (ball_height / 2);
         let ran = Math.floor(Math.random() * 2);
         ball.velocityX = ball_velocity;
-        ball.velocityY = Math.floor(Math.random() * 11) - 5;
+        ball.velocityY = 0;
+        while (ball.velocityY == 0)
+            ball.velocityY = Math.floor(Math.random() * 11) - 5;
         if (ran == 0)
             ball.velocityX *= -1;
         if (ball.velocityX > 0 && (gameMod == 1 || gameMod == 3))
