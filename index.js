@@ -206,9 +206,9 @@ function gameLoop() {
             else
             {
                 if (player1.yPos + player1.height < player1.prediction)
-                    player1.velocityY = 20;
+                    player1.velocityY = 10;
                 if (player1.yPos > player1.prediction)
-                    player1.velocityY = -20;
+                    player1.velocityY = -10;
             }
         }
         
@@ -229,9 +229,9 @@ function gameLoop() {
             else
             {
                 if (player2.yPos + player2.height < player2.prediction)
-                    player2.velocityY = 20;
+                    player2.velocityY = 10;
                 if (player2.yPos > player2.prediction)
-                    player2.velocityY = -20;
+                    player2.velocityY = -10;
             }
         }
 
