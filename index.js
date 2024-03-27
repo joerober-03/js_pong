@@ -46,6 +46,7 @@ let player2 = {
 var stop = false;
 var gameMod = 0;
 var sound = false;
+var animation_id = -1;
 
 function reset_board()
 {
@@ -90,6 +91,7 @@ function stop_playing()
         player1.score = 0;
         player2.score = 0;
     }
+    //window.cancelAnimationFrame(animation_id);
 }
 
 function button1Init()
@@ -99,8 +101,10 @@ function button1Init()
     player2.score = 0;
     gameMod = 1;
     stop = false;
+    window.cancelAnimationFrame(animation_id);
     gameloopInit();
-    startAnimating(60);
+    //startAnimating(60);
+    gameLoop();
 }
 
 function button2Init()
@@ -110,8 +114,10 @@ function button2Init()
     player2.score = 0;
     gameMod = 2;
     stop = false;
+    window.cancelAnimationFrame(animation_id);
     gameloopInit();
-    startAnimating(60);
+    //startAnimating(60);
+    gameLoop();
 }
 
 function button3Init()
@@ -121,8 +127,10 @@ function button3Init()
     player2.score = 0;
     gameMod = 3;
     stop = false;
+    window.cancelAnimationFrame(animation_id);
     gameloopInit();
-    startAnimating(60);
+    //startAnimating(60);
+    gameLoop();
 }
 
 var fpsInterval;
@@ -189,14 +197,15 @@ function gameloopInit()
 }
 
 function gameLoop() {
-    window.requestAnimationFrame(gameLoop);
+    animation_id = window.requestAnimationFrame(gameLoop);
 
-    let now = performance.now();
-    let elapsed = now - then;
+    // let now = performance.now();
+    // let elapsed = now - then;
 
-    if (elapsed > fpsInterval && stop == false)
+    //if (elapsed > fpsInterval && stop == false)
+    if (stop == false)
     {
-        then = now - (elapsed % fpsInterval);
+        //then = now - (elapsed % fpsInterval);
 
         context.fillStyle = "white";
         context.clearRect(0, 0, board.width, board.height);
