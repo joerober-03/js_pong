@@ -1,3 +1,7 @@
+const ws = new WebSocket("wss://joerober-03.github.io/js_pong/");
+
+var player_id = 0;
+
 //board
 let board_height = 800;
 let board_width = 1200;
@@ -20,7 +24,8 @@ let ball = {
     velocityY : 0,
     velocityX : 0,
     velocityXTmp : 0,
-    velocityYTmp : 0
+    velocityYTmp : 0,
+    id : 12
 }
 
 let player1 = {
@@ -30,7 +35,8 @@ let player1 = {
     height : player_height,
     velocityY : playerVelocity,
     score : 0,
-    prediction : -1
+    prediction : -1,
+    id : 10
 }
 
 let player2 = {
@@ -40,10 +46,16 @@ let player2 = {
     height : player_height,
     velocityY : playerVelocity,
     score : 0,
-    prediction : -1
+    prediction : -1,
+    id : 11
 }
 
-var stop = false;
+let send_id = {
+    id : 0
+}
+
+var stop = true;
+var isalone = true;
 var gameMod = 0;
 var sound = false;
 var animation_id = -1;
@@ -86,6 +98,11 @@ function sound_change()
 function stop_playing()
 {
     reset_board();
+    if (gameMod == 4)
+    {
+        send_id.id = 4;
+        ws.send(JSON.stringify(send_id));
+    }
     if (stop == false)
     {
         player1.score = 0;
@@ -96,6 +113,11 @@ function stop_playing()
 
 function button1Init()
 {
+    if (gameMod == 4)
+    {
+        send_id.id = 4;
+        ws.send(JSON.stringify(send_id));
+    }
     reset_board();
     player1.score = 0;
     player2.score = 0;
@@ -109,6 +131,11 @@ function button1Init()
 
 function button2Init()
 {
+    if (gameMod == 4)
+    {
+        send_id.id = 4;
+        ws.send(JSON.stringify(send_id));
+    }
     reset_board();
     player1.score = 0;
     player2.score = 0;
@@ -122,11 +149,75 @@ function button2Init()
 
 function button3Init()
 {
+    if (gameMod == 4)
+    {
+        send_id.id = 4;
+        ws.send(JSON.stringify(send_id));
+    }
     reset_board();
     player1.score = 0;
     player2.score = 0;
     gameMod = 3;
     stop = false;
+    window.cancelAnimationFrame(animation_id);
+    gameloopInit();
+    //startAnimating(60);
+    gameLoop();
+}
+
+ws.addEventListener("message", message => {
+    console.log(message.data);
+    let array = JSON.parse(message.data);
+    if (array.id == 1)
+        player_id = array.num;
+    if (array.id == 2 && array.isready == 1)
+    {
+        stop = false;
+        isalone = false;
+    }
+    else if (array.id == 2 && array.isready == 0)
+    {
+        console.log("what");
+        stop = true;
+        isalone = true;
+    }
+    else if (array.id == 10 && player_id != 1)
+    {
+        player1.yPos = array.yPos;
+        player1.velocityY = array.velocityY;
+        player1.score = array.score;
+    }
+    else if (array.id == 11 && player_id != 2)
+    {
+        player2.yPos = array.yPos;
+        player2.velocityY = array.velocityY;
+        player2.score = array.score;
+    }
+    else if (array.id == 12)
+    {
+        ball.yPos = array.yPos;
+        ball.xPos = array.xPos;
+        ball.velocityX = 0;
+        ball.velocityY = 0;
+        setTimeout(() => { ball.velocityY = array.velocityY; }, 500);
+        setTimeout(() => { ball.velocityX = array.velocityX; }, 500);
+    }
+});
+
+function button4Init()
+{
+    if (gameMod == 4)
+    {
+        send_id.id = 4;
+        ws.send(JSON.stringify(send_id));
+    }
+    send_id.id = 3;
+    ws.send(JSON.stringify(send_id));
+    reset_board();
+    player1.score = 0;
+    player2.score = 0;
+    gameMod = 4;
+    //stop = false;
     window.cancelAnimationFrame(animation_id);
     gameloopInit();
     //startAnimating(60);
@@ -171,26 +262,35 @@ window.onload = function() {
 
 function gameloopInit()
 {
-    let ran = Math.floor(Math.random() * 2);
-    let tmp = ball_velocity;
-    let tmp2 = 0;
-    while (tmp2 == 0)
-        tmp2 = Math.floor(Math.random() * 11) - 5;
-    ball.velocityY = tmp2;
-    if (ran == 0)
-    {
-        tmp *= -1;
-    }
-    ball.velocityX = tmp;
-    if (ran == 0 && gameMod == 3)
-        makeBot1Prediction();
-    else if (ran == 1 && (gameMod == 1 || gameMod == 3))
-        makeBot2Prediction();
-    ball.velocityX = 0;
-    ball.velocityY = 0;
-    setTimeout(() => { ball.velocityY = tmp2; }, 500);
-    setTimeout(() => { ball.velocityX = tmp; }, 500);
-
+    //if (!(gameMod == 4 && player_id == 1))
+   // {
+        let ran = Math.floor(Math.random() * 2);
+        let tmp = ball_velocity;
+        let tmp2 = 0;
+        while (tmp2 == 0)
+            tmp2 = Math.floor(Math.random() * 11) - 5;
+        ball.velocityY = tmp2;
+        if (ran == 0)
+        {
+            tmp *= -1;
+        }
+        ball.velocityX = tmp;
+        if (ran == 0 && gameMod == 3)
+            makeBot1Prediction();
+        else if (ran == 1 && (gameMod == 1 || gameMod == 3))
+            makeBot2Prediction();
+        if (gameMod == 4)
+        {
+            ws.send(JSON.stringify(ball));
+        }
+        if (gameMod != 4)
+        {
+            ball.velocityX = 0;
+            ball.velocityY = 0;
+            setTimeout(() => { ball.velocityY = tmp2; }, 500);
+            setTimeout(() => { ball.velocityX = tmp; }, 500);
+        }
+    //}
     //window.requestAnimationFrame(gameLoop);
     document.addEventListener("keydown", movePlayer);
     document.addEventListener("keyup", stopPlayer);
@@ -198,6 +298,12 @@ function gameloopInit()
 
 function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
+
+    if (gameMod == 4 && isalone == true)
+    {
+        context.font = "50px serif";
+        context.fillText("waiting for another player", 330, 600);
+    }
 
     // let now = performance.now();
     // let elapsed = now - then;
@@ -257,6 +363,14 @@ function gameLoop() {
 
         //middle_line
         fill_middle_lines();
+
+        if (gameMod == 4)
+        {
+            if (player_id == 1)
+                ws.send(JSON.stringify(player1));
+            else if (player_id == 2)
+                ws.send(JSON.stringify(player2));
+        }
 
         //ball
         changeBallVelocity();
@@ -337,11 +451,15 @@ function changeBallVelocity()
             player2.score++;
         else
             player1.score++;
+
         if (player1.score == 5)
         {
             stop_playing();
             context.font = "100px serif";
             context.fillText("Player 1 won !", 325, 400);
+            send_id.id = 4;
+            console.log(send_id.id);
+            ws.send(JSON.stringify(send_id));
             stop = true;
             return ;
         }
@@ -350,28 +468,41 @@ function changeBallVelocity()
             stop_playing();
             context.font = "100px serif";
             context.fillText("Player 2 won !", 330, 400);
+            send_id.id = 4;
+            console.log(send_id.id);
+            ws.send(JSON.stringify(send_id));
             stop = true;
             return ;
         }
-        ball.xPos = (board_width / 2) - (ball_width / 2);
-        ball.yPos = (board_height / 2) - (ball_height / 2);
-        let ran = Math.floor(Math.random() * 2);
-        ball.velocityX = ball_velocity;
-        ball.velocityY = 0;
-        while (ball.velocityY == 0)
-            ball.velocityY = Math.floor(Math.random() * 11) - 5;
-        if (ran == 0)
-            ball.velocityX *= -1;
-        if (ball.velocityX > 0 && (gameMod == 1 || gameMod == 3))
-            makeBot2Prediction();
-        else if (ball.velocityX < 0 && gameMod == 3)
-            makeBot1Prediction();
-        ball.velocityXTmp = ball.velocityX;
-        ball.velocityYTmp = ball.velocityY;
-        ball.velocityX = 0;
-        ball.velocityY = 0;
-        setTimeout(() => { ball.velocityY = ball.velocityYTmp; }, 500);
-        setTimeout(() => { ball.velocityX = ball.velocityXTmp; }, 500);
+        if (!(gameMod == 4 && player_id == 1))
+        {
+            ball.xPos = (board_width / 2) - (ball_width / 2);
+            ball.yPos = (board_height / 2) - (ball_height / 2);
+            let ran = Math.floor(Math.random() * 2);
+            ball.velocityX = ball_velocity;
+            ball.velocityY = 0;
+            while (ball.velocityY == 0)
+                ball.velocityY = Math.floor(Math.random() * 11) - 5;
+            if (ran == 0)
+                ball.velocityX *= -1;
+            if (gameMod == 4)
+            {
+                ws.send(JSON.stringify(ball));
+            }
+            if (ball.velocityX > 0 && (gameMod == 1 || gameMod == 3))
+                makeBot2Prediction();
+            else if (ball.velocityX < 0 && gameMod == 3)
+                makeBot1Prediction();
+            ball.velocityXTmp = ball.velocityX;
+            ball.velocityYTmp = ball.velocityY;
+            if (gameMod != 4)
+            {
+                ball.velocityX = 0;
+                ball.velocityY = 0;
+                setTimeout(() => { ball.velocityY = ball.velocityYTmp; }, 500);
+                setTimeout(() => { ball.velocityX = ball.velocityXTmp; }, 500);
+            }
+        }
     }
 }
 
@@ -400,6 +531,32 @@ function movePlayer(e)
             player2.velocityY = 10;
         }
     }
+
+    if (gameMod == 4)
+    {
+        if (player_id == 1)
+        {
+            if (e.key == 'w')
+            {
+                player1.velocityY = -10; 
+            }
+            if (e.key == 's')
+            {
+                player1.velocityY = 10;
+            }
+        }
+        else if (player_id == 2)
+        {
+            if (e.key == 'w')
+            {
+                player2.velocityY = -10; 
+            }
+            if (e.key == 's')
+            {
+                player2.velocityY = 10;
+            }
+        }
+    }
 }
 
 function stopPlayer(e)
@@ -424,6 +581,31 @@ function stopPlayer(e)
         if (e.key == 'ArrowDown')
         {
             player2.velocityY = 0;
+        }
+    }
+    if (gameMod == 4)
+    {
+        if (player_id == 1)
+        {
+            if (e.key == 'w')
+            {
+                player1.velocityY = 0; 
+            }
+            if (e.key == 's')
+            {
+                player1.velocityY = 0;
+            }
+        }
+        else if (player_id == 2)
+        {
+            if (e.key == 'w')
+            {
+                player2.velocityY = 0; 
+            }
+            if (e.key == 's')
+            {
+                player2.velocityY = 0;
+            }
         }
     }
 }
