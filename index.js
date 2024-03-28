@@ -1,5 +1,3 @@
-const ws = new WebSocket("wss://joerober-03.github.io/js_pong/");
-
 var player_id = 0;
 
 //board
