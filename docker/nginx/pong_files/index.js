@@ -1,5 +1,7 @@
-const ws = new WebSocket("wss://joerober-03.github.io/js_pong/");
+//inititates socket
+const ws = new WebSocket("ws://localhost:8082");
 
+//tells the game logic if it's dealing with player 1 or 2
 var player_id = 0;
 
 //board
@@ -11,7 +13,7 @@ let player_width = 15;
 let player_height = 100;
 let playerVelocity = 0;
 
-//balling
+//ball
 let ball_width = 15;
 let ball_height = 15;
 let ball_velocity = 10;
@@ -23,8 +25,6 @@ let ball = {
     yPos: (board_height / 2) - (ball_height / 2),
     velocityY: 0,
     velocityX: 0,
-    velocityXTmp: 0,
-    velocityYTmp: 0,
     id : 12
 }
 
@@ -35,6 +35,7 @@ let player1 = {
     height: player_height,
     velocityY: playerVelocity,
     score: 0,
+    //prediction set to -1 so the bot doesn't move before the ball goes it's direction
     prediction: -1,
     id : 10
 }
@@ -46,20 +47,27 @@ let player2 = {
     height: player_height,
     velocityY: playerVelocity,
     score: 0,
+    //prediction set to -1 so the bot doesn't move before the ball goes it's direction
     prediction: -1,
     id : 11
 }
 
+//the send_id variable sends info to the server for the state of the gam, 3 is a new player, 4 means a player left online mode
 let send_id = {
     id : 0
 }
 
+//decides wheter to start the game logic or not
 var stop = true;
+//if isalone == true and gameMod == 4 display a message telling player to wait for another player
 var isalone = true;
+//gameMod tells gameLogic what game mod is played. 1 = one player, 2 = two players, 3 = zero players, 4 = online
 var gameMod = 0;
 var sound = false;
+//animation_id is used to stop requestAnimationFrame to avoid frame acceleration
 var animation_id = -1;
 
+//resets the board when a new mode is requested
 function reset_board() {
     gameMod = 0;
     player2.xPos = board_width - player_width - 10;
@@ -82,8 +90,6 @@ function reset_board() {
     ball.yPos = (board_height / 2) - (ball_height / 2);
     ball.velocityY = 0;
     ball.velocityX = 0;
-    ball.velocityXTmp = 0;
-    ball.velocityYTmp = 0;
 }
 
 function sound_change() {
@@ -96,6 +102,7 @@ function sound_change() {
 function stop_playing()
 {
     reset_board();
+    //informs server the client has left online mode
     if (gameMod == 4)
     {
         send_id.id = 4;
@@ -112,6 +119,7 @@ function stop_playing()
 
 function button1Init()
 {
+    //informs server the client has left online mode
     if (gameMod == 4)
     {
         send_id.id = 4;
@@ -130,6 +138,7 @@ function button1Init()
 
 function button2Init()
 {
+    //informs server the client has left online mode
     if (gameMod == 4)
     {
         send_id.id = 4;
@@ -149,6 +158,7 @@ function button2Init()
 
 function button3Init()
 {
+    //informs server the client has left online mode
     if (gameMod == 4)
     {
         send_id.id = 4;
@@ -165,11 +175,15 @@ function button3Init()
     gameLoop();
 }
 
+//whenever the server sends a message to the client, it is parsed here
 ws.addEventListener("message", message => {
     console.log(message.data);
+    //parses the json formated message
     let array = JSON.parse(message.data);
+    //id 1 is sent when a client joins to assign player_id
     if (array.id == 1)
         player_id = array.num;
+    //id 2 is sent to determine if the player is alone in online mode or not
     if (array.id == 2 && array.isready == 1)
     {
         stop = false;
@@ -181,24 +195,28 @@ ws.addEventListener("message", message => {
         stop = true;
         isalone = true;
     }
+    //id 10 is sent to communicate player1 position to player2
     else if (array.id == 10 && player_id != 1)
     {
         player1.yPos = array.yPos;
         player1.velocityY = array.velocityY;
         player1.score = array.score;
     }
+    //id 11 is sent to communicate player2 postion to player1
     else if (array.id == 11 && player_id != 2)
     {
         player2.yPos = array.yPos;
         player2.velocityY = array.velocityY;
         player2.score = array.score;
     }
+    //id 12 is sent to communicate ball postion when respawning to both players
     else if (array.id == 12)
     {
         ball.yPos = array.yPos;
         ball.xPos = array.xPos;
         ball.velocityX = 0;
         ball.velocityY = 0;
+        //set delay so the ball doesn't start moving right away
         setTimeout(() => { ball.velocityY = array.velocityY; }, 500);
         setTimeout(() => { ball.velocityX = array.velocityX; }, 500);
     }
@@ -206,11 +224,13 @@ ws.addEventListener("message", message => {
 
 function button4Init()
 {
+    //informs server the client has left online mode
     if (gameMod == 4)
     {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
+    //informs server the client has entered online mode
     send_id.id = 3;
     ws.send(JSON.stringify(send_id));
     reset_board();
@@ -227,16 +247,20 @@ function button4Init()
 var fpsInterval;
 var then;
 
+//not used at the moment but can set a certain frame per second limit
 function startAnimating(fps) {
     fpsInterval = 1000 / fps;
     then = performance.now();
     gameLoop();
 }
 
+//loads when window is first opened
 window.onload = function () {
+    //allows the code to modify html canvas
     let board = document.getElementById("board");
     board.width = board_width;
     board.height = board_height;
+    //initiates the "drawing board"
     context = board.getContext("2d");
 
     context.fillStyle = "white";
@@ -260,11 +284,14 @@ window.onload = function () {
     context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
 }
 
+//initiates which direction the ball will go at the start of the game
 function gameloopInit() {
+    //decides whether the ball goes left or right
     let ran = Math.floor(Math.random() * 2);
     let tmp = ball_velocity;
     let tmp2 = 0;
 
+    //so the ball doesn't go straight at the start the launch
     while (tmp2 == 0)
         tmp2 = Math.floor(Math.random() * 11) - 5;
     ball.velocityY = tmp2;
@@ -273,35 +300,44 @@ function gameloopInit() {
         tmp *= -1;
     }
     ball.velocityX = tmp;
+    //make bot predictions if correct game mode
     if (ran == 0 && gameMod == 3)
         makeBot1Prediction();
     else if (ran == 1 && (gameMod == 1 || gameMod == 3))
         makeBot2Prediction();
+    //lets players know which direction the ball will go in online mode
     if (gameMod == 4)
     {
         ws.send(JSON.stringify(ball));
     }
+    //if game mode is == 4 it will be sorted in message events
     if (gameMod != 4)
     {
         ball.velocityX = 0;
         ball.velocityY = 0;
+        //set delay so the ball doesn't start moving right away
         setTimeout(() => { ball.velocityY = tmp2; }, 500);
         setTimeout(() => { ball.velocityX = tmp; }, 500);
     }
     //window.requestAnimationFrame(gameLoop);
+    //listens for inputs on keyboard
     document.addEventListener("keydown", movePlayer);
     document.addEventListener("keyup", stopPlayer);
 }
 
+//where most of the program lives, the board is drawn here and the ball logic is also calculated here
 function gameLoop() {
+    //requestAnimationFrame is what makes the whole game move
     animation_id = window.requestAnimationFrame(gameLoop);
 
+    //if player is moving tell it to move
     if (gameMod == 4 && isalone == true)
     {
         context.font = "50px serif";
         context.fillText("waiting for another player", 330, 600);
     }
 
+    //remove comments bellow to set fps manually, otherwise browser does it manually
     // let now = performance.now();
     // let elapsed = now - then;
 
@@ -325,7 +361,7 @@ function gameLoop() {
             }
         }
         
-        //player 1
+        //player 1 movement, disabled if bot is enabled
         if (player1.yPos + player1.velocityY > 0 && player1.yPos + player1.velocityY + player1.height < board_height)
             player1.yPos += player1.velocityY;
         else if (!(player1.yPos + player1.velocityY > 0))
@@ -346,7 +382,7 @@ function gameLoop() {
                     player2.velocityY = -10;
             }
         }
-        //player 2
+        //player 2 movement, disabled if bot is enabled
         if (player2.yPos + player2.velocityY > 0 && player2.yPos + player2.velocityY + player2.height < board_height)
             player2.yPos += player2.velocityY;
         else if (!(player2.yPos + player2.velocityY > 0))
@@ -357,6 +393,7 @@ function gameLoop() {
         //middle_line
         fill_middle_lines();
 
+        //if online mode, both players send their infos to other player
         if (gameMod == 4)
         {
             if (player_id == 1)
@@ -365,7 +402,7 @@ function gameLoop() {
                 ws.send(JSON.stringify(player2));
         }
 
-        //ball
+        //calculate ball logic
         changeBallVelocity();
 
         //score
@@ -387,6 +424,7 @@ function gameLoop() {
     }
 }
 
+//displays the middle lines
 function fill_middle_lines() {
     for (let i = 0; i < board_height; i += 4.2) {
         context.fillStyle = "gray";
@@ -395,10 +433,13 @@ function fill_middle_lines() {
     }
 }
 
+//where the ball bouncing is determined
 function changeBallVelocity() {
+    //checks if ball should bounce on top or bottom of the board
     if (!(ball.yPos + ball.velocityY > 0 && ball.yPos + ball.velocityY + ball.height < board_height)) {
         ball.velocityY *= -1;
     }
+    //checks if the ball hit the player 2 paddle
     if (ball.xPos + ball.velocityX + ball.width >= board_width - 11) {
         if (ball.yPos + ball.velocityY + ball.height + 2 >= player2.yPos && ball.yPos + ball.velocityY - 2 <= player2.yPos + player2.height) {
             ball.velocityY = ((ball.yPos + ball.height / 2) - (player2.yPos + player2.height / 2)) / 7;
@@ -407,12 +448,14 @@ function changeBallVelocity() {
                 ball.velocityX -= 0.5;
             else
                 ball.velocityX += 0.5;
+            //whenever ball hits paddle, opposite side bot will calculate it's prediction
             if (gameMod == 3)
                 makeBot1Prediction();
             if (sound == true)
                 play();
         }
     }
+    //checks if the ball hit the player 1 paddle
     if (ball.xPos + ball.velocityX <= 11) {
         if (ball.yPos + ball.velocityY + ball.height + 2 >= player1.yPos && ball.yPos + ball.velocityY - 2 <= player1.yPos + player1.height) {
             ball.velocityY = ((ball.yPos + ball.height / 2) - (player1.yPos + player1.height / 2)) / 7;
@@ -421,6 +464,7 @@ function changeBallVelocity() {
                 ball.velocityX -= 0.5;
             else
                 ball.velocityX += 0.5;
+            //whenever ball hits paddle, opposite side bot will calculate it's prediction
             if (gameMod == 1 || gameMod == 3)
                 makeBot2Prediction();
             //setTimeout(() => { makeBot2Prediction(); }, 500);
@@ -428,17 +472,20 @@ function changeBallVelocity() {
                 play();
         }
     }
+    //checks if ball will go out of bound horizontally (if a player scored)
     if (!(ball.xPos + ball.velocityX > 0 && ball.xPos + ball.velocityX + ball.width < board_width)) {
         context.fillStyle = "white";
+        //increases player score
         if (!(ball.xPos + ball.velocityX > 0))
             player2.score++;
         else
             player1.score++;
-
+        //checks if a player has won the set
         if (player1.score == 5) {
             stop_playing();
             context.font = "100px serif";
             context.fillText("Player 1 won !", 325, 400);
+            //if game is over, disconnect players
             send_id.id = 4;
             console.log(send_id.id);
             ws.send(JSON.stringify(send_id));
@@ -449,14 +496,17 @@ function changeBallVelocity() {
             stop_playing();
             context.font = "100px serif";
             context.fillText("Player 2 won !", 330, 400);
+            //if game is over, disconnect players
             send_id.id = 4;
             console.log(send_id.id);
             ws.send(JSON.stringify(send_id));
             stop = true;
             return;
         }
+        //only one side of online will determine where the ball goes to avoid desyncs
         if (!(gameMod == 4 && player_id == 1))
         {
+            //determine where ball goes after a score
             ball.xPos = (board_width / 2) - (ball_width / 2);
             ball.yPos = (board_height / 2) - (ball_height / 2);
             let ran = Math.floor(Math.random() * 2);
@@ -466,6 +516,7 @@ function changeBallVelocity() {
                 ball.velocityY = Math.floor(Math.random() * 11) - 5;
             if (ran == 0)
                 ball.velocityX *= -1;
+            //sends ball info to all players
             if (gameMod == 4)
             {
                 ws.send(JSON.stringify(ball));
@@ -474,19 +525,21 @@ function changeBallVelocity() {
                 makeBot2Prediction();
             else if (ball.velocityX < 0 && gameMod == 3)
                 makeBot1Prediction();
-            ball.velocityXTmp = ball.velocityX;
-            ball.velocityYTmp = ball.velocityY;
+            let tmpX = ball.velocityX;
+            let tmpY = ball.velocityY;
+            //sets timeout so that the ball doesn't move straight away
             if (gameMod != 4)
             {
                 ball.velocityX = 0;
                 ball.velocityY = 0;
-                setTimeout(() => { ball.velocityY = ball.velocityYTmp; }, 500);
-                setTimeout(() => { ball.velocityX = ball.velocityXTmp; }, 500);
+                setTimeout(() => { ball.velocityY = tmpY; }, 500);
+                setTimeout(() => { ball.velocityX = tmpX; }, 500);
             }
         }
     }
 }
 
+//what allows players to move
 function movePlayer(e) {
 
     if (gameMod == 1 || gameMod == 2) {
@@ -506,6 +559,7 @@ function movePlayer(e) {
         }
     }
 
+    //checks which player the game should move in online mode
     if (gameMod == 4)
     {
         if (player_id == 1)
@@ -533,6 +587,7 @@ function movePlayer(e) {
     }
 }
 
+//allows the player to stop if key is released
 function stopPlayer(e) {
     if (gameMod == 1 || gameMod == 2) {
         if (e.key == 'w') {
@@ -551,6 +606,7 @@ function stopPlayer(e) {
         }
     }
 
+    //checks which player the game should stop in online mode
     if (gameMod == 4)
     {
         if (player_id == 1)
@@ -578,6 +634,7 @@ function stopPlayer(e) {
     }
 }
 
+//bot prediction, made by creating an invisible ball with the same values as real ball and checking where it lands
 function makeBot1Prediction() {
     let ballcpy_xPos = ball.xPos;
     let ballcpy_yPos = ball.yPos;
@@ -615,9 +672,9 @@ function makeBot1Prediction() {
     }
     let res = ballcpy_xPos / (ballcpy_velocityX * -1);
     player1.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
-    //console.log(player2.prediction);
 }
 
+//bot prediction, made by creating an invisible ball with the same values as real ball and checking where it lands
 function makeBot2Prediction() {
     let ballcpy_xPos = ball.xPos;
     let ballcpy_yPos = ball.yPos;
@@ -666,11 +723,8 @@ function makeBot2Prediction() {
     player2.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
 }
 
+//if option enabled, make sound each time the ball hits a paddle
 function play() {
     var audio = new Audio('utils/1.mp3');
     audio.play();
 }
-// function play2() {
-//     var audio = new Audio('3.mp3');
-//     audio.play();
-// }
