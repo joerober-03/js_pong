@@ -1,7 +1,7 @@
 FROM node:alpine
 
 RUN apk update
-RUN apk upgrade
+#RUN apk upgrade
 
 WORKDIR /usr/src/app
 

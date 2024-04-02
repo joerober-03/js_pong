@@ -1,7 +1,7 @@
 FROM nginx:alpine
 
 RUN apk update
-RUN apk upgrade
+#RUN apk upgrade
 
 RUN rm -rf /usr/share/nginx/html
 

@@ -2,8 +2,7 @@
 const WebSocket = require("ws");
 
 //creates a socket to connect to on port 8082
-const wss = new WebSocket.Server({port: 8082});
-
+const wss = new WebSocket.Server({port: 3333});
 //assign player number to clients
 let clients = {
     id : 1,
@@ -46,7 +45,9 @@ wss.on("connection", ws => {
         {
             ready.isready = 0;
             wss.clients.forEach(function each(client) {
-                client.send(JSON.stringify(ready));
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(ready));
+                }
             });
         }
         //if client_count == 2, start the game
@@ -54,13 +55,17 @@ wss.on("connection", ws => {
         {
             ready.isready = 1;
             wss.clients.forEach(function each(client) {
-                client.send(JSON.stringify(ready));
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(ready));
+                }
             });
         }
         if (array.id == 10 || array.id == 11 || array.id == 12)
         {
             wss.clients.forEach(function each(client) {
-                client.send(JSON.stringify(array));
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(array));
+                }
             });
         }
         //console.log(client_count);
