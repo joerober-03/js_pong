@@ -1,5 +1,5 @@
 //inititates socket
-const ws = new WebSocket("ws://10.19.242.246:3333");
+const ws = new WebSocket("ws://10.19.246.185:3333");
 
 //tells the game logic if it's dealing with player 1 or 2
 var player_id = 0;
@@ -25,8 +25,7 @@ let ball = {
     yPos: (board_height / 2) - (ball_height / 2),
     velocityY: 0,
     velocityX: 0,
-    id : 12,
-    is_delay : false
+    id: 12,
 }
 
 let player1 = {
@@ -38,7 +37,7 @@ let player1 = {
     score: 0,
     //prediction set to -1 so the bot doesn't move before the ball goes it's direction
     prediction: -1,
-    id : 10
+    id: 10
 }
 
 let player2 = {
@@ -50,12 +49,12 @@ let player2 = {
     score: 0,
     //prediction set to -1 so the bot doesn't move before the ball goes it's direction
     prediction: -1,
-    id : 11
+    id: 11
 }
 
 //the send_id variable sends info to the server for the state of the gam, 3 is a new player, 4 means a player left online mode
 let send_id = {
-    id : 0
+    id: 0
 }
 
 //decides wheter to start the game logic or not
@@ -70,7 +69,7 @@ var animation_id = -1;
 
 //resets the board when a new mode is requested
 function reset_board() {
-    gameMod = 0;
+    //gameMod = 0;
     player2.xPos = board_width - player_width - 10;
     player2.yPos = board_height / 2 - player_height / 2;
     player2.width = player_width;
@@ -100,17 +99,15 @@ function sound_change() {
         sound = false;
 }
 
-function stop_playing()
-{
-    reset_board();
+function stop_playing() {
     //informs server the client has left online mode
-    if (gameMod == 4)
-    {
+    if (gameMod == 4) {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
-    if (stop == false)
-    {
+    reset_board();
+    gameMod = 0;
+    if (stop == false) {
         player1.score = 0;
         player2.score = 0;
     }
@@ -118,18 +115,16 @@ function stop_playing()
 }
 
 
-function button1Init()
-{
+function button1Init() {
     //informs server the client has left online mode
-    if (gameMod == 4)
-    {
+    if (gameMod == 4) {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
     reset_board();
-    player1.score = 0;
-    player2.score = 0;
     gameMod = 1;
+    player1.score = 0;
+    player2.score = 0;
     stop = false;
     window.cancelAnimationFrame(animation_id);
     gameloopInit();
@@ -137,18 +132,16 @@ function button1Init()
     //gameLoop();
 }
 
-function button2Init()
-{
+function button2Init() {
     //informs server the client has left online mode
-    if (gameMod == 4)
-    {
+    if (gameMod == 4) {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
     reset_board();
-    player1.score = 0;
-    player2.score = 0;
     gameMod = 2;
+    player1.score = 0;
+    player2.score = 0;
     stop = false;
     window.cancelAnimationFrame(animation_id);
     gameloopInit();
@@ -157,18 +150,16 @@ function button2Init()
 }
 
 
-function button3Init()
-{
+function button3Init() {
     //informs server the client has left online mode
-    if (gameMod == 4)
-    {
+    if (gameMod == 4) {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
     reset_board();
+    gameMod = 3;
     player1.score = 0;
     player2.score = 0;
-    gameMod = 3;
     stop = false;
     window.cancelAnimationFrame(animation_id);
     gameloopInit();
@@ -178,75 +169,67 @@ function button3Init()
 
 //whenever the server sends a message to the client, it is parsed here
 ws.addEventListener("message", message => {
-    console.log(message.data);
+    //console.log(message.data);
     //parses the json formated message
     let array = JSON.parse(message.data);
     //id 1 is sent when a client joins to assign player_id
     if (array.id == 1)
         player_id = array.num;
     //id 2 is sent to determine if the player is alone in online mode or not
-    if (array.id == 2 && array.isready == 1)
-    {
+    else if (array.id == 2 && array.isready == 1) {
         stop = false;
         isalone = false;
     }
-    else if (array.id == 2 && array.isready == 0)
-    {
+    else if (array.id == 2 && array.isready == 0) {
         stop = true;
         isalone = true;
     }
     //id 10 is sent to communicate player1 position to player2
-    else if (array.id == 10 && player_id != 1)
-    {
+    else if (array.id == 10) {
         player1.yPos = array.yPos;
         player1.velocityY = array.velocityY;
+        player1.score = array.score;
     }
     //id 11 is sent to communicate player2 postion to player1
-    else if (array.id == 11 && player_id != 2)
-    {
+    else if (array.id == 11) {
         player2.yPos = array.yPos;
         player2.velocityY = array.velocityY;
+        player2.score = array.score;
     }
     //id 12 is sent to communicate ball postion when respawning to both players
-    else if (array.id == 12)
+    else if (array.id == 12) {
+        ball.yPos = array.yPos;
+        ball.xPos = array.xPos;
+
+        ball.velocityX = 0;
+        ball.velocityY = 0;
+        //set delay so the ball doesn't start moving right away
+        setTimeout(() => { ball.velocityY = array.velocityY; }, 500);
+        setTimeout(() => { ball.velocityX = array.velocityX; }, 500);
+    }
+    else if (array.id == 13)
     {
         ball.yPos = array.yPos;
         ball.xPos = array.xPos;
 
-        if (ball.is_delay == true)
-        {
-            console.log("true");
-            ball.velocityX = 0;
-            ball.velocityY = 0;
-            //set delay so the ball doesn't start moving right away
-            setTimeout(() => { ball.velocityY = array.velocityY; }, 500);
-            setTimeout(() => { ball.velocityX = array.velocityX; }, 500);
-            setTimeout(() => {ball.is_delay = false; }, 500);
-        }
-        else
-        {
-            console.log("false");
-            ball.velocityY = array.velocityY;
-            ball.velocityX = array.velocityX;
-        }
+        ball.velocityY = array.velocityY;
+        ball.velocityX = array.velocityX;
     }
 });
 
-function button4Init()
-{
-    //informs server the client has left online mode
-    if (gameMod == 4)
-    {
+function button4Init() {
+    //informs server the client has left online mode'
+    if (gameMod == 4) {
         send_id.id = 4;
         ws.send(JSON.stringify(send_id));
     }
+    reset_board();
+    gameMod = 4;
     //informs server the client has entered online mode
     send_id.id = 3;
     ws.send(JSON.stringify(send_id));
-    reset_board();
     player1.score = 0;
     player2.score = 0;
-    gameMod = 4;
     //stop = false;
     window.cancelAnimationFrame(animation_id);
     gameloopInit();
@@ -305,8 +288,7 @@ function gameloopInit() {
     while (tmp2 == 0)
         tmp2 = Math.floor(Math.random() * 11) - 5;
     ball.velocityY = tmp2;
-    if (ran == 0)
-    {
+    if (ran == 0) {
         tmp *= -1;
     }
     ball.velocityX = tmp;
@@ -316,14 +298,12 @@ function gameloopInit() {
     else if (ran == 1 && (gameMod == 1 || gameMod == 3))
         makeBot2Prediction();
     //lets players know which direction the ball will go in online mode
-    if (gameMod == 4)
-    {
-        ball.is_delay = true;
+    if (gameMod == 4) {
+        ball.id = 12;
         ws.send(JSON.stringify(ball));
     }
     //if game mode is == 4 it will be sorted in message events
-    if (gameMod != 4)
-    {
+    if (gameMod != 4) {
         ball.velocityX = 0;
         ball.velocityY = 0;
         //set delay so the ball doesn't start moving right away
@@ -342,35 +322,47 @@ function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
 
     //if player is moving tell it to move
-    if (gameMod == 4 && isalone == true)
-    {
+    if (gameMod == 4 && isalone == true) {
+        reset_board();
+        player1.score = 0;
+        player2.score = 0;
         context.font = "50px serif";
         context.fillText("waiting for another player", 330, 600);
     }
 
     //remove comments bellow to set fps manually, otherwise browser does it manually
-     let now = performance.now();
-     let elapsed = now - then;
+    let now = performance.now();
+    let elapsed = now - then;
 
-    if (elapsed > fpsInterval && stop == false)
+    if (gameMod == 4 && isalone == false)
     {
+        if (player_id == 1)
+            ws.send(JSON.stringify(player1));
+        else if (player_id == 2)
+            ws.send(JSON.stringify(player2));
+    }
+    if (gameMod == 4 && player_id == 1 && isalone == false)
+    {
+        ball.id = 13;
+        ws.send(JSON.stringify(ball));
+    }
+
+    if (elapsed > fpsInterval && stop == false) {
         then = now - (elapsed % fpsInterval);
         context.fillStyle = "white";
         context.clearRect(0, 0, board.width, board.height);
         //bot1 movement
-        if (gameMod == 3)
-        {
+        if (gameMod == 3) {
             if (player1.prediction >= player1.yPos && player1.prediction <= player1.yPos + player1.height || player1.prediction == -1)
                 player1.velocityY = 0;
-            else
-            {
+            else {
                 if (player1.yPos + player1.height < player1.prediction)
                     player1.velocityY = 10;
                 if (player1.yPos > player1.prediction)
                     player1.velocityY = -10;
             }
         }
-        
+
         //player 1 movement, disabled if bot is enabled
         if (player1.yPos + player1.velocityY > 0 && player1.yPos + player1.velocityY + player1.height < board_height)
             player1.yPos += player1.velocityY;
@@ -380,12 +372,10 @@ function gameLoop() {
             player1.yPos = board_height - player1.height - 2;
         context.fillRect(player1.xPos, player1.yPos, player1.width, player1.height);
         //bot2 movement
-        if (gameMod == 1 || gameMod == 3)
-        {
+        if (gameMod == 1 || gameMod == 3) {
             if (player2.prediction >= player2.yPos && player2.prediction <= player2.yPos + player2.height || player2.prediction == -1)
                 player2.velocityY = 0;
-            else
-            {
+            else {
                 if (player2.yPos + player2.height < player2.prediction)
                     player2.velocityY = 10;
                 if (player2.yPos > player2.prediction)
@@ -423,18 +413,17 @@ function gameLoop() {
         changeBallVelocity();
 
         //score
+        context.fillStyle = "gray";
         context.font = "48px serif";
         context.fillText(player1.score, 100, 50);
         context.fillText(player2.score, board_width - 130, 50);
-        if (stop == false)
-        {
+        if (stop == false) {
             ball.xPos += ball.velocityX;
             ball.yPos += ball.velocityY;
             context.fillStyle = "white";
             context.fillRect(ball.xPos, ball.yPos, ball.width, ball.height);
         }
-        if (stop == true)
-        {
+        if (stop == true) {
             player1.score = 0;
             player2.score = 0;
         }
@@ -498,45 +487,47 @@ function changeBallVelocity() {
         else
             player1.score++;
         //checks if a player has won the set
-        if (player1.score == 5) {
-            stop_playing();
-            context.font = "100px serif";
-            context.fillText("Player 1 won !", 325, 400);
-            //if game is over, disconnect players
-            send_id.id = 4;
-            console.log(send_id.id);
-            ws.send(JSON.stringify(send_id));
-            stop = true;
-            return;
-        }
-        if (player2.score == 5) {
-            stop_playing();
-            context.font = "100px serif";
-            context.fillText("Player 2 won !", 330, 400);
-            //if game is over, disconnect players
-            send_id.id = 4;
-            console.log(send_id.id);
-            ws.send(JSON.stringify(send_id));
-            stop = true;
-            return;
-        }
+        // if (player1.score == 5) {
+        //     console.log("dawg " + player1.score);
+        //     stop_playing();
+        //     context.font = "100px serif";
+        //     context.fillText("Player 1 won !", 325, 400);
+        //     //if game is over, disconnect players
+        //     send_id.id = 4;
+        //     console.log(send_id.id);
+        //     ws.send(JSON.stringify(send_id));
+        //     stop = true;
+        //     return;
+        // }
+        // if (player2.score == 5) {
+        //     console.log("bruh " + player2.score);
+        //     stop_playing();
+        //     context.font = "100px serif";
+        //     context.fillText("Player 2 won !", 330, 400);
+        //     //if game is over, disconnect players
+        //     send_id.id = 4;
+        //     console.log(send_id.id);
+        //     ws.send(JSON.stringify(send_id));
+        //     stop = true;
+        //     return;
+        // }
         //only one side of online will determine where the ball goes to avoid desyncs
-        if (!(gameMod == 4 && player_id == 1))
-        {
+        ball.xPos = (board_width / 2) - (ball_width / 2);
+        ball.yPos = (board_height / 2) - (ball_height / 2);
+        // ball.velocityX = 0;
+        // ball.velocityY = 0;
+        if (!(gameMod == 4 && player_id == 1)) {
             //determine where ball goes after a score
-            ball.xPos = (board_width / 2) - (ball_width / 2);
-            ball.yPos = (board_height / 2) - (ball_height / 2);
-            let ran = Math.floor(Math.random() * 2);
             ball.velocityX = ball_velocity;
+            let ran = Math.floor(Math.random() * 2);
+            if (ran == 0)
+                ball.velocityX *= -1;
             ball.velocityY = 0;
             while (ball.velocityY == 0)
                 ball.velocityY = Math.floor(Math.random() * 11) - 5;
-            if (ran == 0)
-                ball.velocityX *= -1;
             //sends ball info to all players
-            if (gameMod == 4)
-            {
-                ball.is_delay = true;
+            if (gameMod == 4) {
+                ball.id = 12;
                 ws.send(JSON.stringify(ball));
             }
             if (ball.velocityX > 0 && (gameMod == 1 || gameMod == 3))
@@ -546,8 +537,7 @@ function changeBallVelocity() {
             let tmpX = ball.velocityX;
             let tmpY = ball.velocityY;
             //sets timeout so that the ball doesn't move straight away
-            if (gameMod != 4)
-            {
+            if (gameMod != 4) {
                 ball.velocityX = 0;
                 ball.velocityY = 0;
                 setTimeout(() => { ball.velocityY = tmpY; }, 500);
@@ -578,33 +568,26 @@ function movePlayer(e) {
     }
 
     //checks which player the game should move in online mode
-    if (gameMod == 4)
-    {
-        if (player_id == 1)
-        {
-            if (e.key == 'w')
-            {
-                player1.velocityY = -10; 
+    if (gameMod == 4) {
+        if (player_id == 1) {
+            if (e.key == 'w') {
+                player1.velocityY = -10;
             }
-            if (e.key == 's')
-            {
+            if (e.key == 's') {
                 player1.velocityY = 10;
             }
-            if (e.key == 's' || e.key == 'w')
-                ws.send(JSON.stringify(player1));
+            // if (e.key == 's' || e.key == 'w')
+            //     ws.send(JSON.stringify(player1));
         }
-        else if (player_id == 2)
-        {
-            if (e.key == 'w')
-            {
-                player2.velocityY = -10; 
+        else if (player_id == 2) {
+            if (e.key == 'w') {
+                player2.velocityY = -10;
             }
-            if (e.key == 's')
-            {
+            if (e.key == 's') {
                 player2.velocityY = 10;
             }
-            if (e.key == 's' || e.key == 'w')
-                ws.send(JSON.stringify(player2));
+            // if (e.key == 's' || e.key == 'w')
+            //     ws.send(JSON.stringify(player2));
         }
     }
 }
@@ -629,33 +612,26 @@ function stopPlayer(e) {
     }
 
     //checks which player the game should stop in online mode
-    if (gameMod == 4)
-    {
-        if (player_id == 1)
-        {
-            if (e.key == 'w')
-            {
-                player1.velocityY = 0; 
-            }
-            if (e.key == 's')
-            {
+    if (gameMod == 4) {
+        if (player_id == 1) {
+            if (e.key == 'w') {
                 player1.velocityY = 0;
             }
-            if (e.key == 's' || e.key == 'w')
-                ws.send(JSON.stringify(player1));
-        }
-        else if (player_id == 2)
-        {
-            if (e.key == 'w')
-            {
-                player2.velocityY = 0; 
+            if (e.key == 's') {
+                player1.velocityY = 0;
             }
-            if (e.key == 's')
-            {
+            // if (e.key == 's' || e.key == 'w')
+            //     ws.send(JSON.stringify(player1));
+        }
+        else if (player_id == 2) {
+            if (e.key == 'w') {
                 player2.velocityY = 0;
             }
-            if (e.key == 's' || e.key == 'w')
-                ws.send(JSON.stringify(player2));
+            if (e.key == 's') {
+                player2.velocityY = 0;
+            }
+            // if (e.key == 's' || e.key == 'w')
+            //     ws.send(JSON.stringify(player2));
         }
     }
 }

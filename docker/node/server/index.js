@@ -60,7 +60,15 @@ wss.on("connection", ws => {
                 }
             });
         }
-        if (array.id == 10 || array.id == 11 || array.id == 12)
+        if (array.id == 10 || array.id == 11 || array.id == 13)
+        {
+            wss.clients.forEach(function each(client) {
+                if (ws !== client && client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(array));
+                }
+            });
+        }
+        if (array.id == 12)
         {
             wss.clients.forEach(function each(client) {
                 if (client.readyState === WebSocket.OPEN) {
