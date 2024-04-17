@@ -240,7 +240,7 @@ function button4Init() {
 var fpsInterval;
 var then;
 
-//not used at the moment but can set a certain frame per second limit
+//used at the moment, can set a certain frame per second limit
 function startAnimating(fps) {
     fpsInterval = 1000 / fps;
     then = performance.now();
@@ -640,7 +640,6 @@ function stopPlayer(e) {
 function makeBot1Prediction() {
     let ballcpy_xPos = ball.xPos;
     let ballcpy_yPos = ball.yPos;
-    let ballcpy_height = ball.height;
     let ballcpy_velocityX = ball.velocityX;
     let ballcpy_velocityY = ball.velocityY;
     let yDistance = 0;
@@ -659,29 +658,35 @@ function makeBot1Prediction() {
             else {
                 ballcpy_velocityY *= -1;
                 ballcpy_yPos += ballcpy_velocityY;
+                if (ballcpy_velocityY < 0)
+                    yDistance = 0;
+                else
+                    yDistance = board_height;
             }
         }
         else {
-            if (ballcpy_yPos + ballcpy_velocityY + ballcpy_height < yDistance) {
+            if (ballcpy_yPos + ballcpy_velocityY + ball_height < yDistance) {
                 ballcpy_yPos += ballcpy_velocityY;
             }
             else {
                 ballcpy_velocityY *= -1;
                 ballcpy_yPos += ballcpy_velocityY;
+                if (ballcpy_velocityY < 0)
+                    yDistance = 0;
+                else
+                    yDistance = board_height;
             }
         }
 
     }
     let res = ballcpy_xPos / (ballcpy_velocityX * -1);
-    player1.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
+    player1.prediction = ballcpy_yPos + ball_height / 2 + ballcpy_velocityY * res;
 }
 
 //bot prediction, made by creating an invisible ball with the same values as real ball and checking where it lands
 function makeBot2Prediction() {
     let ballcpy_xPos = ball.xPos;
     let ballcpy_yPos = ball.yPos;
-    let ballcpy_height = ball.height;
-    let ballcpy_width = ball.width;
     let ballcpy_velocityX = ball.velocityX;
     let ballcpy_velocityY = ball.velocityY;
     let yDistance = 0;
@@ -691,7 +696,7 @@ function makeBot2Prediction() {
     else
         yDistance = board_height;
 
-    while (ballcpy_xPos + ballcpy_velocityX + ballcpy_width + 11 < board_width) {
+    while (ballcpy_xPos + ballcpy_velocityX + ball_width + 11 < board_width) {
         ballcpy_xPos += ballcpy_velocityX;
         if (yDistance == 0) {
             if (ballcpy_yPos + ballcpy_velocityY > yDistance) {
@@ -707,7 +712,7 @@ function makeBot2Prediction() {
             }
         }
         else {
-            if (ballcpy_yPos + ballcpy_velocityY + ballcpy_height < yDistance) {
+            if (ballcpy_yPos + ballcpy_velocityY + ball_height < yDistance) {
                 ballcpy_yPos += ballcpy_velocityY;
             }
             else {
@@ -722,7 +727,7 @@ function makeBot2Prediction() {
 
     }
     let res = (board_width - ballcpy_xPos) / ballcpy_velocityX;
-    player2.prediction = ballcpy_yPos + ballcpy_height / 2 + ballcpy_velocityY * res;
+    player2.prediction = ballcpy_yPos + ball_height / 2 + ballcpy_velocityY * res;
 }
 
 //if option enabled, make sound each time the ball hits a paddle
