@@ -14,6 +14,13 @@ services:
     # networks:
     #   - pong
     init: true
+
+  db:
+    image: postgres:16.2
+    volumes:
+      - postgres:/var/lib/postgresql/data/
+    environment:
+      - "POSTGRES_HOST_AUTH_METHOD=trust"
   
 
 volumes:
@@ -23,6 +30,12 @@ volumes:
       type: 'none' 
       o: 'bind'
       device: '/Users/joerober/code/tests/ping/git/docker/django/volume'
+  postgres:
+    driver: local
+    driver_opts:
+      type: 'none' 
+      o: 'bind'
+      device: '/Users/joerober/code/tests/ping/git/docker/django/volume_db'
 
 # networks:
 #   pong:
