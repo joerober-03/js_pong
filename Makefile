@@ -28,16 +28,16 @@ clean:
 	docker system prune -af
 
 redo:
-	docker-compose down -v
+	docker-compose -f $(compose_file) down -v
 	docker system prune -af
-	docker-compose up -d
+	docker-compose -f $(compose_file) up -d
 
 quick:
-	docker-compose down -v
-	docker-compose up -d
+	docker-compose -f $(compose_file) down -v
+	docker-compose -f $(compose_file) up -d
 
 shutdown:
-	docker-compose down -v
+	docker-compose -f $(compose_file) down -v
 	docker system prune -af
 
 re: clean all

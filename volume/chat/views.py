@@ -1,5 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import *
+from django.http import JsonResponse
+from .serializers import MessageSerializer
 
 def CreateRoom(request):
 
@@ -38,3 +40,17 @@ def MessageView(request, room_name, username):
         "room_name": room_name,
     }
     return render(request, 'chat/chatPage.html', context)
+
+def message_list(request, room_name):
+    get_room = Room.objects.get(room_name=room_name)
+    get_messages = Message.objects.filter(room=get_room)
+    serializer = MessageSerializer(get_messages, many=True)
+    preMessage = "Messages from room " + room_name + ": "
+    return JsonResponse({preMessage: serializer.data})
+
+def user_message_list(request, room_name, username):
+    get_room = Room.objects.get(room_name=room_name)
+    get_messages = Message.objects.filter(room=get_room, sender=username)
+    serializer = MessageSerializer(get_messages, many=True)
+    preMessage = "Messages from room " + room_name + " by user " + username + ": "
+    return JsonResponse({preMessage: serializer.data})
