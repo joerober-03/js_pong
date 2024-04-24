@@ -54,3 +54,6 @@ def user_message_list(request, room_name, username):
     serializer = MessageSerializer(get_messages, many=True)
     preMessage = "Messages from room " + room_name + " by user " + username + ": "
     return JsonResponse({preMessage: serializer.data})
+
+def PongView(request, room_name, username):
+    return render(request, 'chat/pong.html')

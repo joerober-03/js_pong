@@ -1,6 +1,6 @@
 compose_file = docker/docker-compose.yml
 
-volume_dir = volume volume_dir
+volume_dir = volume volume_db
 
 service = django
 
