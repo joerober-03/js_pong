@@ -160,10 +160,10 @@ function gameLoop() {
 
         draw_board();
 
-        if (stop == true) {
-            player1.score = 0;
-            player2.score = 0;
-        }
+        // if (stop == true) {
+        //     player1.score = 0;
+        //     player2.score = 0;
+        // }
     }
 }
 
@@ -200,22 +200,28 @@ function stopPlayer(e) {
 }
 
 ws.addEventListener("message", event => {
-    console.log(event.data);
     let messageData = JSON.parse(event.data);
+    console.log(messageData);
     if (messageData.type === "stateUpdate") {
-        if (messageData.objects[0].id == 0)
+        for (o = 0; o < messageData.objects.length; o++)
         {
-            player1.yPos = messageData.objects[0].yPos;
-            player1.score = messageData.objects[0].score;
+            if (messageData.objects[o].id == 0)
+            {
+                player1.yPos = messageData.objects[0].yPos;
+                player1.score = messageData.objects[0].score;
+                ball.yPos = messageData.objects[0].ballY;
+                ball.xPos = messageData.objects[0].ballX
+            }
+            else
+            {
+                player2.yPos = messageData.objects[1].yPos;
+                player2.score = messageData.objects[1].score;
+                ball.yPos = messageData.objects[1].ballY;
+                ball.xPos = messageData.objects[1].ballX
+            }
         }
-        else
-        {
-            player2.yPos = messageData.objects[0].yPos;
-            player2.score = messageData.objects[0].score;
-        }
-        //console.log(player1.yPos);
     }
     else if (messageData.type === "playerId") {
-      player_id = messageData.playerId;
+        player_id = messageData.playerId;
     }
 });
