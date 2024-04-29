@@ -13,11 +13,20 @@
             <form action="" method="POST">
                 {% csrf_token %}
                 <label for="">Username</label><br>
-                <input type="text" placeholder="Username" name="username" required><br>
+                <input type="text" placeholder="Username" name="username"><br>
                 <label for="">Room name</label><br>
-                <input type="text" placeholder="room name" name="room" required><br>
+                <input type="text" placeholder="room name" name="room"><br>
                 <center><button type="submit">Submit</button></center><br>
             </form>
+            <br>
+            <br>
+            <center><p id="errorField"></p></center>
+            <script>
+                if ("{{error}}" != "")
+                {
+                    document.getElementById("errorField").textContent="{{error}}";
+                }
+            </script>
         </div>
     </div>
 </body>
@@ -64,6 +73,15 @@ h1 {
     font-family: Arial, sans-serif;
     font-weight: bold;
     color: white;
+}
+
+p {
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    color: rgb(195, 22, 22);
+    font-size: 1.3rem;
 }
 
 input {

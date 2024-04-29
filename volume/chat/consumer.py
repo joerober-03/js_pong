@@ -10,6 +10,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from chat.models import *
 from asgiref.sync import async_to_sync
+# from channels.exceptions import StopConsumer
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     # p_id = 0
@@ -45,7 +47,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         "velocityX" : 0
     }
 
+    isalone = {
+        "num" : 0,
+    }
+
     #ball = Ball()
+
+    stop = False
 
     players = {}
     update_lock = asyncio.Lock()
@@ -94,9 +102,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "ballY": 0,
                 }
         
-        while await self.check_room() == 0:
-            pass
-        test = asyncio.create_task(self.game_loop())
+        init = asyncio.create_task(self.game_loop_init())
 
     @database_sync_to_async
     def assign_player_id(self):
@@ -110,13 +116,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return 2
         
     async def disconnect(self, close_code):
+        self.stop = True
+
+        await self.remove_player_id()
+
         async with self.update_lock:
             if self.player_id in self.players:
                 del self.players[self.player_id]
-            
-        await self.remove_player_id()
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
+        # raise StopConsumer()
 
     @database_sync_to_async
     def remove_player_id(self):
@@ -155,10 +164,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
+    async def player_num(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "playerNum",
+                    "objects": event["objects"],
+                }
+            )
+        )
+
+    async def game_loop_init(self):
+        while await self.check_room() == 0:
+            if self.stop:
+                break
+        
+        if self.stop == False:
+            self.isalone["num"] = 2
+
+            await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "player_num", "objects": self.isalone},
+                )
+            
+            game = asyncio.create_task(self.game_loop())
+
     async def game_loop(self):
         self.init_ball_values()
         self.ball_direction()
-        while await self.check_room() == 1:
+        while self.stop == False:
             async with self.update_lock:
                 for player in self.players.values():
                     if player["moveUp"]:

@@ -112,12 +112,6 @@ window.onload = function () {
     document.addEventListener("keydown", movePlayer);
     document.addEventListener("keyup", stopPlayer);
     draw_board();
-    // while (isalone == true)
-    // {
-    //     animation_id = window.requestAnimationFrame(gameLoop);
-    //     context.fillText("waiting for a second player", 200, 300);
-    //     context.clearRect(0, 0, board.width, board.height);
-    // }
     gameLoop();
 }
 
@@ -148,6 +142,7 @@ function draw_board()
 function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
 
+    context.clearRect(0, 0, board.width, board.height);
     // let now = performance.now();
     // let elapsed = now - then;
 
@@ -155,15 +150,12 @@ function gameLoop() {
     if (stop == false) {
         //then = now - (elapsed % fpsInterval);
 
-        //ball
-        context.clearRect(0, 0, board.width, board.height);
-
         draw_board();
-
-        // if (stop == true) {
-        //     player1.score = 0;
-        //     player2.score = 0;
-        // }
+    }
+    if (isalone == true)
+    {
+        context.fillStyle = "white";
+        context.fillText("waiting for a second player", 325, 315);
     }
 }
 
@@ -201,27 +193,33 @@ function stopPlayer(e) {
 
 ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
-    console.log(messageData);
+   // console.log(messageData);
     if (messageData.type === "stateUpdate") {
         for (o = 0; o < messageData.objects.length; o++)
         {
             if (messageData.objects[o].id == 0)
             {
-                player1.yPos = messageData.objects[0].yPos;
-                player1.score = messageData.objects[0].score;
-                ball.yPos = messageData.objects[0].ballY;
-                ball.xPos = messageData.objects[0].ballX
+                player1.yPos = messageData.objects[o].yPos;
+                player1.score = messageData.objects[o].score;
+                ball.yPos = messageData.objects[o].ballY;
+                ball.xPos = messageData.objects[o].ballX
             }
             else
             {
-                player2.yPos = messageData.objects[1].yPos;
-                player2.score = messageData.objects[1].score;
-                ball.yPos = messageData.objects[1].ballY;
-                ball.xPos = messageData.objects[1].ballX
+                player2.yPos = messageData.objects[o].yPos;
+                player2.score = messageData.objects[o].score;
+                ball.yPos = messageData.objects[o].ballY;
+                ball.xPos = messageData.objects[o].ballX
             }
         }
     }
     else if (messageData.type === "playerId") {
         player_id = messageData.playerId;
+    }
+    else if (messageData.type === "playerNum") {
+        if (messageData.objects.num === 2)
+            isalone = false;
+        else
+            isalone = true;
     }
 });
