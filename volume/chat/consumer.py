@@ -39,14 +39,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     #     velocityY = 0
     #     score = 0
     
-    ball = {
-        "width" : 0,
-        "height" : 0,
-        "xPos" : 0,
-        "yPos" : 0,
-        "velocityY" : 0,
-        "velocityX" : 0
-    }
 
     isalone = {
         "num" : 0,
@@ -57,12 +49,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
     stop = False
 
     players = {}
+    balls = {}
+
     update_lock = asyncio.Lock()
-    room = ""
 
     async def connect(self):
         self.room = f"{self.scope['url_route']['kwargs']['room_name']}"
-        self.player_id = await self.assign_player_id()
+        self.player_id = str(uuid.uuid4())
         self.room_name = f"room_{self.scope['url_route']['kwargs']['room_name']}"
         await self.channel_layer.group_add(self.room_name, self.channel_name)
         await self.accept()
@@ -70,10 +63,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(
             text_data=json.dumps({"type": "playerId", "playerId": self.player_id})
         )
-        if (self.player_id % 2) == 0:
+
+        ball = self.find_ball(self.room)
+        self.ball_id = str(uuid.uuid4())
+        if ball:
+            self.ball_id = ball["id"]
+        else:
+            async with self.update_lock:
+                self.balls[self.ball_id] = {
+                    "width" : self.ball_width,
+                    "height" : self.ball_height,
+                    "xPos" : (self.board_width / 2) - (self.ball_width / 2),
+                    "yPos" : (self.board_height / 2) - (self.ball_height / 2),
+                    "velocityY" : 0,
+                    "velocityX" : 0,
+                    "room": self.room,
+                    "id": self.ball_id,
+                }
+
+        if await self.assign_player_id() == 0:
             async with self.update_lock:
                 self.players[self.player_id] = {
                     "id": self.player_id,
+                    "side": "left",
                     "room": self.room,
                     "xPos": 10,
                     "yPos": self.board_height / 2 - self.player_height / 2,
@@ -90,6 +102,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             async with self.update_lock:
                 self.players[self.player_id] = {
                     "id": self.player_id,
+                    "side": "right",
                     "room": self.room,
                     "xPos": self.board_width - self.player_width - 10,
                     "yPos": self.board_height / 2 - self.player_height / 2,
@@ -118,22 +131,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
     async def disconnect(self, close_code):
         self.stop = True
+    
+        del_ball = False
 
-        await self.remove_player_id()
+        del_ball = await self.remove_player_id()
 
         async with self.update_lock:
             if self.player_id in self.players:
                 del self.players[self.player_id]
+
+        async with self.update_lock:
+            if self.ball_id in self.balls and del_ball == True:
+                del self.balls[self.ball_id]
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
         # raise StopConsumer()
 
     @database_sync_to_async
     def remove_player_id(self):
-        if self.player_id == 0:
+        if self.players[self.player_id]["side"] == "left":
             Room.objects.filter(room_name=self.room).update(left=False)
         else:
             Room.objects.filter(room_name=self.room).update(right=False)
+        
+        current_room = Room.objects.get(room_name=self.room)
+        if current_room.left == False and current_room.right == False:
+            return True
+        return False
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -195,7 +219,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.ball_direction()
         while self.stop == False:
             async with self.update_lock:
+                # print("this is room " + self.room)
+                # print(len(self.players))
                 for player in self.players.values():
+                    # print(player["room"])
                     if player["moveUp"]:
                         if player["yPos"] + self.playerVelocityUp > 0:
                             player["yPos"] += self.playerVelocityUp
@@ -210,12 +237,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             self.calculate_ball_changes()
 
-            self.ball["xPos"] += self.ball["velocityX"]
-            self.ball["yPos"] += self.ball["velocityY"]
+            ball = self.find_ball(self.room)
+            ball["xPos"] += ball["velocityX"]
+            ball["yPos"] += ball["velocityY"]
             
             for player in self.players.values():
-                player["ballX"] = self.ball["xPos"]
-                player["ballY"] = self.ball["yPos"]
+                player["ballX"] = ball["xPos"]
+                player["ballY"] = ball["yPos"]
             
             await self.channel_layer.group_send(
                 self.room_name,
@@ -242,32 +270,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     def calculate_ball_changes(self):
 
-        player1 = self.players.get(0, None)
-        player2 = self.players.get(1, None)
+        player1 = self.find_player("left", self.room)
+        player2 = self.find_player("right", self.room)
 
-        if (self.ball["yPos"] + self.ball["velocityY"] < 0 or self.ball["yPos"] + self.ball["velocityY"] + self.ball["height"] > self.board_height):
-            self.ball["velocityY"] *= -1
+        ball = self.find_ball(self.room)
 
-        if (self.ball["xPos"] + self.ball["velocityX"] + self.ball["width"] >= self.board_width - 11):
-            if (self.ball["yPos"] + self.ball["velocityY"] + self.ball["height"] + 2 >= player2["yPos"] and self.ball["yPos"] + self.ball["velocityY"] - 2 <= player2["yPos"] + player2["height"]):
-                self.ball["velocityY"] = ((self.ball["yPos"] + self.ball["height"] / 2) - (player2["yPos"] + player2["height"] / 2)) / 7
-                self.ball["velocityX"] *= -1
-                if self.ball["velocityX"] < 0:
-                    self.ball["velocityX"] -= 0.5
+        if (ball["yPos"] + ball["velocityY"] < 0 or ball["yPos"] + ball["velocityY"] + ball["height"] > self.board_height):
+            ball["velocityY"] *= -1
+
+        if (ball["xPos"] + ball["velocityX"] + ball["width"] >= self.board_width - 11):
+            if (ball["yPos"] + ball["velocityY"] + ball["height"] + 2 >= player2["yPos"] and ball["yPos"] + ball["velocityY"] - 2 <= player2["yPos"] + player2["height"]):
+                ball["velocityY"] = ((ball["yPos"] + ball["height"] / 2) - (player2["yPos"] + player2["height"] / 2)) / 7
+                ball["velocityX"] *= -1
+                if ball["velocityX"] < 0:
+                    ball["velocityX"] -= 0.5
                 else:
-                    self.ball["velocityX"] += 0.5
+                    ball["velocityX"] += 0.5
 
-        if (self.ball["xPos"] + self.ball["velocityX"] <= 11):
-            if (self.ball["yPos"] + self.ball["velocityY"] + self.ball["height"] + 2 >= player1["yPos"] and self.ball["yPos"] + self.ball["velocityY"] - 2 <= player1["yPos"] + player1["height"]):
-                self.ball["velocityY"] = ((self.ball["yPos"] + self.ball["height"] / 2) - (player1["yPos"] + player1["height"] / 2)) / 7
-                self.ball["velocityX"] *= -1
-                if (self.ball["velocityX"] < 0):
-                    self.ball["velocityX"] -= 0.5
+        if (ball["xPos"] + ball["velocityX"] <= 11):
+            if (ball["yPos"] + ball["velocityY"] + ball["height"] + 2 >= player1["yPos"] and ball["yPos"] + ball["velocityY"] - 2 <= player1["yPos"] + player1["height"]):
+                ball["velocityY"] = ((ball["yPos"] + ball["height"] / 2) - (player1["yPos"] + player1["height"] / 2)) / 7
+                ball["velocityX"] *= -1
+                if (ball["velocityX"] < 0):
+                    ball["velocityX"] -= 0.5
                 else:
-                    self.ball["velocityX"] += 0.5
+                    ball["velocityX"] += 0.5
 
-        if (self.ball["xPos"] + self.ball["velocityX"] < 0 or self.ball["xPos"] + self.ball["velocityX"] + self.ball["width"] > self.board_width):
-            if (self.ball["xPos"] + self.ball["velocityX"] < 0):
+        if (ball["xPos"] + ball["velocityX"] < 0 or ball["xPos"] + ball["velocityX"] + ball["width"] > self.board_width):
+            if (ball["xPos"] + ball["velocityX"] < 0):
                 player2["score"] += 1
             else:
                 player1["score"] += 1
@@ -276,6 +306,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.ball_direction()
             
     def ball_direction(self):
+        ball = self.find_ball(self.room)
         r1 = random.randint(0, 1)
         if r1 == 0:
             r1 = self.ball_velocity
@@ -286,8 +317,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         while r2 == 0:
             r2 = random.randint(-5, 5)
 
-        self.ball["velocityY"] = 0
-        self.ball["velocityX"] = 0
+        ball["velocityY"] = 0
+        ball["velocityX"] = 0
 
         r = Timer(1.0, self.assign_values, (1, r2))
         s = Timer(1.0, self.assign_values, (0, r1))
@@ -296,15 +327,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         s.start()
 
     def assign_values(self, id, value):
+        ball = self.find_ball(self.room)
         if id == 0:
-            self.ball["velocityX"] = value
+            ball["velocityX"] = value
         else:
-            self.ball["velocityY"] = value
+            ball["velocityY"] = value
 
     def init_ball_values(self):
-        self.ball["width"] = self.ball_width
-        self.ball["height"] = self.ball_height
-        self.ball["xPos"] = (self.board_width / 2) - (self.ball_width / 2)
-        self.ball["yPos"] = (self.board_height / 2) - (self.ball_height / 2)
-        self.ball["velocityY"] = 0
-        self.ball["velocityX"] = 0
+        ball = self.find_ball(self.room)
+        ball["width"] = self.ball_width
+        ball["height"] = self.ball_height
+        ball["xPos"] = (self.board_width / 2) - (self.ball_width / 2)
+        ball["yPos"] = (self.board_height / 2) - (self.ball_height / 2)
+        ball["velocityY"] = 0
+        ball["velocityX"] = 0
+
+    def find_player(self, target_side, target_room):
+        for player in self.players.values():
+            if player["side"] == target_side and player["room"] == target_room:
+                return player
+        return None
+
+    def find_ball(self, target_room):
+        for ball in self.balls.values():
+            if ball["room"] == target_room:
+                return ball
+        return None

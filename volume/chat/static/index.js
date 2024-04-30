@@ -194,22 +194,25 @@ function stopPlayer(e) {
 ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
     console.log(messageData);
-    if (messageData.type === "state_update") {
+    if (messageData.type === "stateUpdate") {
         for (o = 0; o < messageData.objects.length; o++)
         {
-            if (messageData.objects[o].id == 0)
+            if (messageData.objects[o].room == room_name)
             {
-                player1.yPos = messageData.objects[o].yPos;
-                player1.score = messageData.objects[o].score;
-                ball.yPos = messageData.objects[o].ballY;
-                ball.xPos = messageData.objects[o].ballX
-            }
-            else
-            {
-                player2.yPos = messageData.objects[o].yPos;
-                player2.score = messageData.objects[o].score;
-                ball.yPos = messageData.objects[o].ballY;
-                ball.xPos = messageData.objects[o].ballX
+                if (messageData.objects[o].side == "left")
+                {
+                    player1.yPos = messageData.objects[o].yPos;
+                    player1.score = messageData.objects[o].score;
+                    ball.yPos = messageData.objects[o].ballY;
+                    ball.xPos = messageData.objects[o].ballX
+                }
+                else
+                {
+                    player2.yPos = messageData.objects[o].yPos;
+                    player2.score = messageData.objects[o].score;
+                    ball.yPos = messageData.objects[o].ballY;
+                    ball.xPos = messageData.objects[o].ballX
+                }
             }
         }
     }
