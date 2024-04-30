@@ -17,11 +17,11 @@ class Room(models.Model):
     #     new_message = Message(room=self, sender=sender, message=message)
     #     new_message.save()
 
-class Message(models.Model):
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
-    sender = models.CharField(max_length=255)
-    message = models.TextField()
-    message_id = models.CharField(max_length=255, default='id')
+# class Message(models.Model):
+#     room = models.ForeignKey(Room, on_delete=models.CASCADE)
+#     sender = models.CharField(max_length=255)
+#     message = models.TextField()
+#     message_id = models.CharField(max_length=255, default='id')
 
-    def __str__(self):
-        return str(self.room)
+#     def __str__(self):
+#         return str(self.room)

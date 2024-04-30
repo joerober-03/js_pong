@@ -1,4 +1,4 @@
-const ws = new WebSocket("ws://10.19.246.185:8000/ws/notification/room/");
+//const ws = new WebSocket("ws://10.19.246.185:8000/ws/notification/room/");
 
 var player_id = 0;
 //board
@@ -193,8 +193,8 @@ function stopPlayer(e) {
 
 ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
-   // console.log(messageData);
-    if (messageData.type === "stateUpdate") {
+    console.log(messageData);
+    if (messageData.type === "state_update") {
         for (o = 0; o < messageData.objects.length; o++)
         {
             if (messageData.objects[o].id == 0)

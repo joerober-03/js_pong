@@ -18,6 +18,11 @@
     <button id="button_multi" onclick="button4Init()" class="button button">online</button>
   </div> -->
     <canvas id="board"></canvas>
+    <script>
+      const ws = new WebSocket("ws://" + window.location.host + "/ws/notification/{{room_name}}/");
+      var room_name = "{{room_name}}";
+      var username = "{{user}}";
+    </script>
     <script src="{% static 'index.js' %}"></script>
     <h1></h1>
     <div class="checkbox-wrapper-65">

@@ -15,6 +15,7 @@ from asgiref.sync import async_to_sync
 
 class ChatConsumer(AsyncWebsocketConsumer):
     # p_id = 0
+
     #board
     board_height = 800
     board_width = 1200
@@ -57,13 +58,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     players = {}
     update_lock = asyncio.Lock()
+    room = ""
 
     async def connect(self):
-        #self.player_id = str(uuid.uuid4())
+        self.room = f"{self.scope['url_route']['kwargs']['room_name']}"
         self.player_id = await self.assign_player_id()
-        print(self.player_id)
-        # self.player_id = self.p_id
-        # self.p_id += 1
         self.room_name = f"room_{self.scope['url_route']['kwargs']['room_name']}"
         await self.channel_layer.group_add(self.room_name, self.channel_name)
         await self.accept()
@@ -75,6 +74,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             async with self.update_lock:
                 self.players[self.player_id] = {
                     "id": self.player_id,
+                    "room": self.room,
                     "xPos": 10,
                     "yPos": self.board_height / 2 - self.player_height / 2,
                     "width": self.player_width,
@@ -90,6 +90,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             async with self.update_lock:
                 self.players[self.player_id] = {
                     "id": self.player_id,
+                    "room": self.room,
                     "xPos": self.board_width - self.player_width - 10,
                     "yPos": self.board_height / 2 - self.player_height / 2,
                     "width": self.player_width,
@@ -106,12 +107,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def assign_player_id(self):
-        current_room = Room.objects.get(room_name='room')
+        current_room = Room.objects.get(room_name=self.room)
         if current_room.left == False:
-            Room.objects.filter(room_name='room').update(left=True)
+            Room.objects.filter(room_name=self.room).update(left=True)
             return 0
         else:
-            Room.objects.filter(room_name='room').update(right=True)
+            Room.objects.filter(room_name=self.room).update(right=True)
             return 1
         return 2
         
@@ -130,9 +131,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def remove_player_id(self):
         if self.player_id == 0:
-            Room.objects.filter(room_name='room').update(left=False)
+            Room.objects.filter(room_name=self.room).update(left=False)
         else:
-            Room.objects.filter(room_name='room').update(right=False)
+            Room.objects.filter(room_name=self.room).update(right=False)
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -215,22 +216,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             for player in self.players.values():
                 player["ballX"] = self.ball["xPos"]
                 player["ballY"] = self.ball["yPos"]
-
+            
             await self.channel_layer.group_send(
                 self.room_name,
                 {"type": "state_update", "objects": list(self.players.values())},
             )
 
+            # await self.send(text_data=json.dumps({"type": "state_update", "objects": list(self.players.values())},))
+
             # await self.channel_layer.group_send(
             #     self.room_name,
-            #     {"type": "ball_update", "objects": list(self.ball.values())},
+            #     {"type": "ball_update"z, "objects": list(self.ball.values())},
             # )
 
             await asyncio.sleep(0.03)
     
     @database_sync_to_async
     def check_room(self):
-        current_room = Room.objects.get(room_name='room')
+        current_room = Room.objects.get(room_name=self.room)
         if current_room.left == True and current_room.right == True:
             return 1
         else:

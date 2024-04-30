@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect
 from .models import *
 from django.http import JsonResponse
-from .serializers import MessageSerializer
 
 def CreateRoom(request):
 
@@ -43,7 +42,11 @@ def PongView(request, room_name, username):
                 "error": "full",
             }
             return render(request, 'chat/noRoom.html', context)
-        return render(request, 'chat/pong.html')
+        context = {
+            "user": username,
+            "room_name": room_name,
+        }
+        return render(request, 'chat/pong.html', context)
 
     except Room.DoesNotExist:
         context = {
