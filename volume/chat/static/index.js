@@ -149,7 +149,6 @@ function gameLoop() {
     //if (elapsed > fpsInterval && stop == false)
     if (stop == false) {
         //then = now - (elapsed % fpsInterval);
-
         draw_board();
     }
     if (isalone == true)
@@ -157,6 +156,7 @@ function gameLoop() {
         context.fillStyle = "white";
         context.fillText("waiting for a second player", 325, 315);
     }
+    //window.cancelAnimationFrame(animation_id);
 }
 
 function fill_middle_lines() {
@@ -168,51 +168,54 @@ function fill_middle_lines() {
 }
 
 function play() {
-    var audio = new Audio("chat/static/utils/1.mp3");
-    audio.play();
+    if (sound == true)
+        audio.play();
 }
 
+var lastSent = "none";
+
 function movePlayer(e) {
-    if (e.key == 'w') {
+    if (e.key == 'w' && lastSent != "keyW") {
         ws.send(JSON.stringify({ type: "keyW", playerId: player_id }));
+        lastSent = "keyW";
     }
-    if (e.key == 's') {
+    if (e.key == 's' && lastSent != "keyS") {
         ws.send(JSON.stringify({ type: "keyS", playerId: player_id }));
+        lastSent = "keyS"
     }
 }
 
 //allows the player to stop if key is released
 function stopPlayer(e) {
-    if (e.key == 'w') {
+    if (e.key == 'w' && lastSent != "keyStop") {
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
+        lastSent = "keyStop"
     }
-    if (e.key == 's') {
+    if (e.key == 's' && lastSent != "keyStop") {
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
+        lastSent = "keyStop"
     }
 }
 
 ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
-    console.log(messageData);
+    // console.log(messageData);
     if (messageData.type === "stateUpdate") {
         for (o = 0; o < messageData.objects.length; o++)
         {
-            if (messageData.objects[o].room == room_name)
+            if (messageData.objects[o].side == "left")
             {
-                if (messageData.objects[o].side == "left")
-                {
-                    player1.yPos = messageData.objects[o].yPos;
-                    player1.score = messageData.objects[o].score;
-                    ball.yPos = messageData.objects[o].ballY;
-                    ball.xPos = messageData.objects[o].ballX
-                }
-                else
-                {
-                    player2.yPos = messageData.objects[o].yPos;
-                    player2.score = messageData.objects[o].score;
-                    ball.yPos = messageData.objects[o].ballY;
-                    ball.xPos = messageData.objects[o].ballX
-                }
+                player1.yPos = messageData.objects[o].yPos;
+                player1.score = messageData.objects[o].score;
+                ball.yPos = messageData.objects[o].ballY;
+                ball.xPos = messageData.objects[o].ballX;
+            }
+            else
+            {
+                player2.yPos = messageData.objects[o].yPos;
+                player2.score = messageData.objects[o].score;
+                ball.yPos = messageData.objects[o].ballY;
+                ball.xPos = messageData.objects[o].ballX;
             }
         }
     }
@@ -220,9 +223,12 @@ ws.addEventListener("message", event => {
         player_id = messageData.playerId;
     }
     else if (messageData.type === "playerNum") {
-        if (messageData.objects.num === 2)
+        if (messageData.num === 2)
             isalone = false;
         else
             isalone = true;
+    }
+    else if (messageData.type === "sound") {
+        play();
     }
 });

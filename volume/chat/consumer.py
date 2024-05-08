@@ -12,9 +12,7 @@ from chat.models import *
 from asgiref.sync import async_to_sync
 # from channels.exceptions import StopConsumer
 
-
 class ChatConsumer(AsyncWebsocketConsumer):
-    # p_id = 0
 
     #board
     board_height = 800
@@ -25,31 +23,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
     player_height = 100
     playerVelocityUp = -20
     playerVelocityDown = 20
+    # player1_xPos = 10
+    # player2_xPos = board_width - player_width - 10
 
     #balling
     ball_width = 15
     ball_height = 15
     ball_velocity = 10
 
-    # class Players:
-    #     player_id = 0
-    #     xPos = (board_width / 2) - (ball_width / 2)
-    #     yPos = (board_height / 2) - (ball_height / 2)
-    #     velocityX = 0
-    #     velocityY = 0
-    #     score = 0
-    
+    bounce = False
 
-    isalone = {
-        "num" : 0,
-    }
-
-    #ball = Ball()
-
-    stop = False
-
-    players = {}
-    balls = {}
+    room_vars = {}
 
     update_lock = asyncio.Lock()
 
@@ -64,34 +48,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
             text_data=json.dumps({"type": "playerId", "playerId": self.player_id})
         )
 
-        ball = self.find_ball(self.room)
-        self.ball_id = str(uuid.uuid4())
-        if ball:
-            self.ball_id = ball["id"]
-        else:
+        if self.room not in self.room_vars:
             async with self.update_lock:
-                self.balls[self.ball_id] = {
-                    "width" : self.ball_width,
-                    "height" : self.ball_height,
-                    "xPos" : (self.board_width / 2) - (self.ball_width / 2),
-                    "yPos" : (self.board_height / 2) - (self.ball_height / 2),
-                    "velocityY" : 0,
-                    "velocityX" : 0,
-                    "room": self.room,
-                    "id": self.ball_id,
+                self.room_vars[self.room] = {
+                    "players" : {},
+                    "player_num" : 0,
+                    "stop" : False,
+                    "ball_xPos" : (self.board_width / 2) - (self.ball_width / 2),
+                    "ball_yPos" : (self.board_height / 2) - (self.ball_height / 2),
+                    "ball_velocityY" : 0,
+                    "ball_velocityX" : 0,
                 }
 
-        if await self.assign_player_id() == 0:
+        player_side = self.assign_player_side()
+        if player_side == 0:
             async with self.update_lock:
-                self.players[self.player_id] = {
+                self.room_vars[self.room]["players"][self.player_id] = {
                     "id": self.player_id,
                     "side": "left",
-                    "room": self.room,
-                    "xPos": 10,
                     "yPos": self.board_height / 2 - self.player_height / 2,
-                    "width": self.player_width,
-                    "height": self.player_height,
-                    "velocityY": 0,
+                    "score": 0,
+                    "moveUp": False,
+                    "moveDown": False,
+                    "ballX": 0,
+                    "ballY": 0,
+                }
+        elif player_side == 1:
+            async with self.update_lock:
+                self.room_vars[self.room]["players"][self.player_id] = {
+                    "id": self.player_id,
+                    "side": "right",
+                    "yPos": self.board_height / 2 - self.player_height / 2,
                     "score": 0,
                     "moveUp": False,
                     "moveDown": False,
@@ -99,65 +86,53 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "ballY": 0,
                 }
         else:
-            async with self.update_lock:
-                self.players[self.player_id] = {
-                    "id": self.player_id,
-                    "side": "right",
-                    "room": self.room,
-                    "xPos": self.board_width - self.player_width - 10,
-                    "yPos": self.board_height / 2 - self.player_height / 2,
-                    "width": self.player_width,
-                    "height": self.player_height,
-                    "velocityY": 0,
-                    "score": 0,
-                    "moveUp": False,
-                    "moveDown": False,
-                    "ballX": 0,
-                    "ballY": 0,
-                }
-        
+            return
+
+        await self.check_full()
+
         init = asyncio.create_task(self.game_loop_init())
 
     @database_sync_to_async
-    def assign_player_id(self):
-        current_room = Room.objects.get(room_name=self.room)
-        if current_room.left == False:
-            Room.objects.filter(room_name=self.room).update(left=True)
-            return 0
+    def check_full(self):
+        if self.assign_player_side() == 2:
+            Room.objects.filter(room_name=self.room).update(full=True)
         else:
-            Room.objects.filter(room_name=self.room).update(right=True)
+            Room.objects.filter(room_name=self.room).update(full=False)
+
+    def assign_player_side(self):
+        left = 0
+        right = 0
+        for player in self.room_vars[self.room]["players"].values():
+            if player["side"] == "left":
+                left = 1
+            if player["side"] == "right":
+                right = 1
+        if left == 0 and right == 0:
+            return 0
+        if left == 0 and right == 1:
+            return 0
+        if left == 1 and right == 0:
             return 1
-        return 2
+        if left == 1 and right == 1:
+            return 2
         
     async def disconnect(self, close_code):
-        self.stop = True
-    
-        del_ball = False
+        self.room_vars[self.room]["stop"] = True
 
-        del_ball = await self.remove_player_id()
+        self.reset_board()
+            
+        await self.channel_layer.group_send(
+            self.room_name,
+            {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
+        )
 
         async with self.update_lock:
-            if self.player_id in self.players:
-                del self.players[self.player_id]
+            if self.player_id in self.room_vars[self.room]["players"]:
+                del self.room_vars[self.room]["players"][self.player_id]
 
-        async with self.update_lock:
-            if self.ball_id in self.balls and del_ball == True:
-                del self.balls[self.ball_id]
+        await self.check_full()
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
-        # raise StopConsumer()
-
-    @database_sync_to_async
-    def remove_player_id(self):
-        if self.players[self.player_id]["side"] == "left":
-            Room.objects.filter(room_name=self.room).update(left=False)
-        else:
-            Room.objects.filter(room_name=self.room).update(right=False)
-        
-        current_room = Room.objects.get(room_name=self.room)
-        if current_room.left == False and current_room.right == False:
-            return True
-        return False
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -165,8 +140,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         player_id = text_data_json["playerId"]
 
-        player = self.players.get(player_id, None)
+        player = self.room_vars[self.room]["players"].get(player_id, None)
         if not player:
+            print("no player")
             return
 
         if message_type == "keyW":
@@ -189,6 +165,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
+    async def sound(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "sound",
+                    "objects": event["objects"],
+                }
+            )
+        )
+
     async def player_num(self, event):
         await self.send(
             text_data=json.dumps(
@@ -200,64 +186,81 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def game_loop_init(self):
-        while await self.check_room() == 0:
-            if self.stop:
-                break
-        
-        if self.stop == False:
-            self.isalone["num"] = 2
 
-            await self.channel_layer.group_send(
-                    self.room_name,
-                    {"type": "player_num", "objects": self.isalone},
-                )
-            
-            game = asyncio.create_task(self.game_loop())
+        while len(self.room_vars[self.room]["players"]) != 2:
+            if self.room_vars[self.room]["stop"]:
+                break
+            await asyncio.sleep(0.03)
+        #     # time.sleep(1)
+
+        await self.send(
+            text_data=json.dumps({"type": "playerNum", "num": 2})
+        )
+
+        self.room_vars[self.room]["stop"] = False
+        game = asyncio.create_task(self.game_loop())
 
     async def game_loop(self):
         self.init_ball_values()
         self.ball_direction()
-        while self.stop == False:
-            async with self.update_lock:
-                # print("this is room " + self.room)
-                # print(len(self.players))
-                for player in self.players.values():
-                    # print(player["room"])
-                    if player["moveUp"]:
-                        if player["yPos"] + self.playerVelocityUp > 0:
-                            player["yPos"] += self.playerVelocityUp
-                        else:
-                            player["yPos"] = 0
-                        
-                    if player["moveDown"]:
-                        if player["yPos"] + self.playerVelocityDown + self.player_height < self.board_height:
-                            player["yPos"] += self.playerVelocityDown
-                        else:
-                            player["yPos"] = self.board_height - self.player_height
+        fpsInterval = 1.0 / 60.0
+        then = time.time()
+        while self.room_vars[self.room]["stop"] == False:
+        #while 1:
+            now = time.time()
+            elapsed = now - then
+            if (elapsed > fpsInterval):
+                # print('Tasks count: ', len(asyncio.all_tasks()))
+                # print('players count: ', len(self.players))
+                then = now - (elapsed % fpsInterval)
+                async with self.update_lock:
+                    for player in self.room_vars[self.room]["players"].values():
+                        if player["moveUp"]:
+                            if player["yPos"] + self.playerVelocityUp > 0:
+                                player["yPos"] += self.playerVelocityUp
+                            else:
+                                player["yPos"] = 0
+                            
+                        if player["moveDown"]:
+                            if player["yPos"] + self.playerVelocityDown + self.player_height < self.board_height:
+                                player["yPos"] += self.playerVelocityDown
+                            else:
+                                player["yPos"] = self.board_height - self.player_height
 
-            self.calculate_ball_changes()
+                self.calculate_ball_changes()
 
-            ball = self.find_ball(self.room)
-            ball["xPos"] += ball["velocityX"]
-            ball["yPos"] += ball["velocityY"]
-            
-            for player in self.players.values():
-                player["ballX"] = ball["xPos"]
-                player["ballY"] = ball["yPos"]
-            
+                if (self.bounce == True):
+                    self.bounce = False
+                    await self.channel_layer.group_send(
+                        self.room_name,
+                        {"type": "sound", "objects": 1},
+                    )
+
+                self.room_vars[self.room]["ball_xPos"] += self.room_vars[self.room]["ball_velocityX"]
+                self.room_vars[self.room]["ball_yPos"] += self.room_vars[self.room]["ball_velocityY"]
+                
+                for player in self.room_vars[self.room]["players"].values():
+                    player["ballX"] = self.room_vars[self.room]["ball_xPos"]
+                    player["ballY"] = self.room_vars[self.room]["ball_yPos"]
+
+                await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
+                )
+
+                await asyncio.sleep(0.03)
+
+        if (self.room_vars[self.room]["stop"]):
             await self.channel_layer.group_send(
                 self.room_name,
-                {"type": "state_update", "objects": list(self.players.values())},
+                {"type": "player_num", "objects": 1},
             )
 
-            # await self.send(text_data=json.dumps({"type": "state_update", "objects": list(self.players.values())},))
-
-            # await self.channel_layer.group_send(
-            #     self.room_name,
-            #     {"type": "ball_update"z, "objects": list(self.ball.values())},
-            # )
-
-            await asyncio.sleep(0.03)
+        self.reset_board()
+        if self.player_id in self.room_vars[self.room]["players"]:
+            print("how many")
+            #self.game_loop_init()
+            init = asyncio.create_task(self.game_loop_init())
     
     @database_sync_to_async
     def check_room(self):
@@ -270,43 +273,47 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     def calculate_ball_changes(self):
 
-        player1 = self.find_player("left", self.room)
-        player2 = self.find_player("right", self.room)
+        player1 = self.find_player("left")
+        player2 = self.find_player("right")
 
-        ball = self.find_ball(self.room)
+        if (not player1 or not player2):
+            return
 
-        if (ball["yPos"] + ball["velocityY"] < 0 or ball["yPos"] + ball["velocityY"] + ball["height"] > self.board_height):
-            ball["velocityY"] *= -1
+        if (self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] < 0 or self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height > self.board_height):
+            self.room_vars[self.room]["ball_velocityY"] *= -1
 
-        if (ball["xPos"] + ball["velocityX"] + ball["width"] >= self.board_width - 11):
-            if (ball["yPos"] + ball["velocityY"] + ball["height"] + 2 >= player2["yPos"] and ball["yPos"] + ball["velocityY"] - 2 <= player2["yPos"] + player2["height"]):
-                ball["velocityY"] = ((ball["yPos"] + ball["height"] / 2) - (player2["yPos"] + player2["height"] / 2)) / 7
-                ball["velocityX"] *= -1
-                if ball["velocityX"] < 0:
-                    ball["velocityX"] -= 0.5
+        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] + self.ball_width >= self.board_width - 11):
+            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height + 2 >= player2["yPos"] and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] - 2 <= player2["yPos"] + self.player_height):
+                self.room_vars[self.room]["ball_velocityY"] = ((self.room_vars[self.room]["ball_yPos"] + self.ball_height / 2) - (player2["yPos"] + self.player_height / 2)) / 7
+                self.room_vars[self.room]["ball_velocityX"] *= -1
+                if self.room_vars[self.room]["ball_velocityX"] < 0:
+                    self.room_vars[self.room]["ball_velocityX"] -= 0.5
                 else:
-                    ball["velocityX"] += 0.5
+                    self.room_vars[self.room]["ball_velocityX"] += 0.5
 
-        if (ball["xPos"] + ball["velocityX"] <= 11):
-            if (ball["yPos"] + ball["velocityY"] + ball["height"] + 2 >= player1["yPos"] and ball["yPos"] + ball["velocityY"] - 2 <= player1["yPos"] + player1["height"]):
-                ball["velocityY"] = ((ball["yPos"] + ball["height"] / 2) - (player1["yPos"] + player1["height"] / 2)) / 7
-                ball["velocityX"] *= -1
-                if (ball["velocityX"] < 0):
-                    ball["velocityX"] -= 0.5
+                self.bounce = True
+
+        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] <= 11):
+            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height + 2 >= player1["yPos"] and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] - 2 <= player1["yPos"] + self.player_height):
+                self.room_vars[self.room]["ball_velocityY"] = ((self.room_vars[self.room]["ball_yPos"] + self.ball_height / 2) - (player1["yPos"] + self.player_height / 2)) / 7
+                self.room_vars[self.room]["ball_velocityX"] *= -1
+                if (self.room_vars[self.room]["ball_velocityX"] < 0):
+                    self.room_vars[self.room]["ball_velocityX"] -= 0.5
                 else:
-                    ball["velocityX"] += 0.5
+                    self.room_vars[self.room]["ball_velocityX"] += 0.5
 
-        if (ball["xPos"] + ball["velocityX"] < 0 or ball["xPos"] + ball["velocityX"] + ball["width"] > self.board_width):
-            if (ball["xPos"] + ball["velocityX"] < 0):
+                self.bounce = True
+
+        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] < 0 or self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] + self.ball_width > self.board_width):
+            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] < 0):
                 player2["score"] += 1
-            else:
+            elif self.room_vars[self.room]["stop"] == False:
                 player1["score"] += 1
             
             self.init_ball_values()
             self.ball_direction()
             
     def ball_direction(self):
-        ball = self.find_ball(self.room)
         r1 = random.randint(0, 1)
         if r1 == 0:
             r1 = self.ball_velocity
@@ -317,8 +324,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         while r2 == 0:
             r2 = random.randint(-5, 5)
 
-        ball["velocityY"] = 0
-        ball["velocityX"] = 0
+        self.room_vars[self.room]["ball_velocityY"] = 0
+        self.room_vars[self.room]["ball_velocityX"] = 0
 
         r = Timer(1.0, self.assign_values, (1, r2))
         s = Timer(1.0, self.assign_values, (0, r1))
@@ -327,29 +334,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         s.start()
 
     def assign_values(self, id, value):
-        ball = self.find_ball(self.room)
         if id == 0:
-            ball["velocityX"] = value
+            self.room_vars[self.room]["ball_velocityX"] = value
         else:
-            ball["velocityY"] = value
+            self.room_vars[self.room]["ball_velocityY"] = value
 
     def init_ball_values(self):
-        ball = self.find_ball(self.room)
-        ball["width"] = self.ball_width
-        ball["height"] = self.ball_height
-        ball["xPos"] = (self.board_width / 2) - (self.ball_width / 2)
-        ball["yPos"] = (self.board_height / 2) - (self.ball_height / 2)
-        ball["velocityY"] = 0
-        ball["velocityX"] = 0
+        self.room_vars[self.room]["ball_xPos"] = (self.board_width / 2) - (self.ball_width / 2)
+        self.room_vars[self.room]["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
+        self.room_vars[self.room]["ball_velocityY"] = 0
+        self.room_vars[self.room]["ball_velocityX"] = 0
 
-    def find_player(self, target_side, target_room):
-        for player in self.players.values():
-            if player["side"] == target_side and player["room"] == target_room:
+    def find_player(self, target_side):
+        for player in self.room_vars[self.room]["players"].values():
+            if player["side"] == target_side:
                 return player
         return None
 
-    def find_ball(self, target_room):
-        for ball in self.balls.values():
-            if ball["room"] == target_room:
-                return ball
-        return None
+    def reset_board(self):
+        self.init_ball_values
+        for player in self.room_vars[self.room]["players"].values():
+            player["yPos"] = self.board_height / 2 - self.player_height / 2
+            player["score"] = 0
+            player["ballX"] = 0
+            player["ballY"] = 0
+            player["ballX"] = (self.board_width / 2) - (self.ball_width / 2)
+            player["ballY"] = (self.board_height / 2) - (self.ball_height / 2)

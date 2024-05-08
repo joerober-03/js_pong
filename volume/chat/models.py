@@ -2,8 +2,7 @@ from django.db import models
 
 class Room(models.Model):
     room_name = models.CharField(max_length=255)
-    right = models.BooleanField(default=False)
-    left = models.BooleanField(default=False)
+    full = models.BooleanField(default=False)
 
     def __str__(self):
         return self.room_name

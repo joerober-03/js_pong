@@ -16,7 +16,8 @@ def CreateRoom(request):
 
         try:
             get_room = Room.objects.get(room_name=room)
-            if get_room.left == True and get_room.right == True:
+            get_room = Room.objects.get(room_name=room)
+            if get_room.full == True:
                 context = {
                     "error": "This room is full, please try another one",
                 }
@@ -37,7 +38,8 @@ def CreateRoom(request):
 def PongView(request, room_name, username):
     try:
         get_room = Room.objects.get(room_name=room_name)
-        if get_room.left == True and get_room.right == True:
+        get_room = Room.objects.get(room_name=room_name)
+        if get_room.full == True:
             context = {
                 "error": "full",
             }

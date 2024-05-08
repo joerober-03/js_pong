@@ -1,8 +1,8 @@
 version: "3.8"
 
 services:
-  django:
-    container_name: django
+  django2:
+    container_name: django2
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,9 +11,9 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
-      - django:/home/transcendance/${SERVICE_NAME}
+      - django2:/home/transcendance/${SERVICE_NAME}
     tty: true
     # networks:
     #   - pong
@@ -28,7 +28,7 @@ services:
   
 
 volumes:
-  django:
+  django2:
     driver: local
     driver_opts:
       type: 'none' 
