@@ -231,4 +231,6 @@ ws.addEventListener("message", event => {
     else if (messageData.type === "sound") {
         play();
     }
+    // if (messageData.type != "stateUpdate")
+    //     console.log(messageData);
 });

@@ -10,7 +10,6 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from chat.models import *
 from asgiref.sync import async_to_sync
-# from channels.exceptions import StopConsumer
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
@@ -21,10 +20,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     #player
     player_width = 15
     player_height = 100
-    playerVelocityUp = -20
-    playerVelocityDown = 20
-    # player1_xPos = 10
-    # player2_xPos = board_width - player_width - 10
+    playerVelocityUp = -10
+    playerVelocityDown = 10
 
     #balling
     ball_width = 15
@@ -117,20 +114,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return 2
         
     async def disconnect(self, close_code):
-        self.room_vars[self.room]["stop"] = True
-
-        self.reset_board()
-            
-        await self.channel_layer.group_send(
-            self.room_name,
-            {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
-        )
-
         async with self.update_lock:
             if self.player_id in self.room_vars[self.room]["players"]:
                 del self.room_vars[self.room]["players"][self.player_id]
 
+        if self.assign_player_side() != 2:
+            await self.channel_layer.group_send(
+                self.room_name,
+                {"type": "player_num", "objects": 1},
+            )
+            self.room_vars[self.room]["stop"] = True
+
+            self.reset_board()
+            
+            await self.channel_layer.group_send(
+                self.room_name,
+                {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
+            )
+
         await self.check_full()
+        # print("in consumer")
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
@@ -186,32 +189,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def game_loop_init(self):
+        while self.player_id in self.room_vars[self.room]["players"]:
+            while len(self.room_vars[self.room]["players"]) != 2:
+                await asyncio.sleep(0.03)
+            await self.send(
+                text_data=json.dumps({"type": "playerNum", "num": 2})
+            )
 
-        while len(self.room_vars[self.room]["players"]) != 2:
-            if self.room_vars[self.room]["stop"]:
-                break
+            self.room_vars[self.room]["stop"] = False
+            await self.game_loop()
             await asyncio.sleep(0.03)
-        #     # time.sleep(1)
-
-        await self.send(
-            text_data=json.dumps({"type": "playerNum", "num": 2})
-        )
-
-        self.room_vars[self.room]["stop"] = False
-        game = asyncio.create_task(self.game_loop())
 
     async def game_loop(self):
         self.init_ball_values()
         self.ball_direction()
         fpsInterval = 1.0 / 60.0
         then = time.time()
-        while self.room_vars[self.room]["stop"] == False:
-        #while 1:
+        while len(self.room_vars[self.room]["players"]) == 2:
             now = time.time()
             elapsed = now - then
             if (elapsed > fpsInterval):
-                # print('Tasks count: ', len(asyncio.all_tasks()))
-                # print('players count: ', len(self.players))
                 then = now - (elapsed % fpsInterval)
                 async with self.update_lock:
                     for player in self.room_vars[self.room]["players"].values():
@@ -250,18 +247,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 await asyncio.sleep(0.03)
 
-        if (self.room_vars[self.room]["stop"]):
-            await self.channel_layer.group_send(
-                self.room_name,
-                {"type": "player_num", "objects": 1},
-            )
-
-        self.reset_board()
-        if self.player_id in self.room_vars[self.room]["players"]:
-            print("how many")
-            #self.game_loop_init()
-            init = asyncio.create_task(self.game_loop_init())
-    
     @database_sync_to_async
     def check_room(self):
         current_room = Room.objects.get(room_name=self.room)
