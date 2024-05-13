@@ -139,6 +139,8 @@ function draw_board()
 
 }
 
+var trigger = true;
+
 function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
 
@@ -155,6 +157,26 @@ function gameLoop() {
     {
         context.fillStyle = "white";
         context.fillText("waiting for a second player", 325, 315);
+    }
+    if (player1.score == 5)
+    {
+        if (trigger == true)
+        {
+            setTimeout(() => { location.replace("http://" + window.location.host); }, 5000);
+            trigger = false;
+        }
+        context.font = "100px serif";
+        context.fillText("Player 1 won !", 330, 400);
+    }
+    else if (player2.score == 5)
+    {
+        if (trigger == true)
+        {
+            setTimeout(() => { location.replace("http://" + window.location.host); }, 5000);
+            trigger = false;
+        }
+        context.font = "100px serif";
+        context.fillText("Player 2 won !", 330, 400);
     }
     //window.cancelAnimationFrame(animation_id);
 }
@@ -225,7 +247,7 @@ ws.addEventListener("message", event => {
     else if (messageData.type === "playerNum") {
         if (messageData.num === 2)
             isalone = false;
-        else
+        else if (messageData.num === 1)
             isalone = true;
     }
     else if (messageData.type === "sound") {

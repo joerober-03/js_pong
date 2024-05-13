@@ -8,10 +8,10 @@ import time
 from threading import Timer
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from chat.models import *
+from online.models import *
 from asgiref.sync import async_to_sync
 
-class ChatConsumer(AsyncWebsocketConsumer):
+class OnlineConsumer(AsyncWebsocketConsumer):
 
     #board
     board_height = 800
@@ -222,7 +222,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             elapsed = now - then
             if (elapsed > fpsInterval):
                 then = now - (elapsed % fpsInterval)
-                print(len(asyncio.all_tasks()))
+                # print(len(asyncio.all_tasks()))
                 async with self.update_lock:
                     for player in self.room_vars[self.room]["players"].values():
                         if player["moveUp"]:
@@ -309,7 +309,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 player1["score"] += 1
             
             self.init_ball_values()
-            self.ball_direction()
+            if player2["score"] != 5 and player1["score"] != 5:
+                self.ball_direction()
             
     def ball_direction(self):
         r1 = random.randint(0, 1)

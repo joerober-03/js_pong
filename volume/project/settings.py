@@ -31,7 +31,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'chat.apps.ChatConfig',
+    'online.apps.OnlineConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -135,7 +135,7 @@ CHANNEL_LAYERS = {
     }
 }
 
-LOGIN_REDIRECT_URL = "chat-page"
-LOGOUT_REDIRECT_URL = "login-user"
+# LOGIN_REDIRECT_URL = "chat-page"
+# LOGOUT_REDIRECT_URL = "login-user"
 
 STATIC_URL = "static/"

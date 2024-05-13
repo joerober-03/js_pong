@@ -15,7 +15,7 @@ def CreateRoom(request):
                 context = {
                     "error": "Please enter a valid room name",
                 }
-                return render(request, 'chat/index.html', context)
+                return render(request, 'online/index.html', context)
 
             try:
                 get_room = Room.objects.get(room_name=room)
@@ -23,7 +23,7 @@ def CreateRoom(request):
                     context = {
                         "error": "This room is full, please try another one",
                     }
-                    return render(request, 'chat/index.html', context)
+                    return render(request, 'online/index.html', context)
                 return redirect('room', room_name=room)
 
             except Room.DoesNotExist:
@@ -45,7 +45,7 @@ def CreateRoom(request):
         "error": "",
     }
 
-    return render(request, 'chat/index.html', context)
+    return render(request, 'online/index.html', context)
 
 def PongView(request, room_name):
     # time.sleep(1)
@@ -56,15 +56,15 @@ def PongView(request, room_name):
             context = {
                 "error": "full",
             }
-            return render(request, 'chat/noRoom.html', context)
+            return render(request, 'online/noRoom.html', context)
         context = {
             "room_name": room_name,
         }
-        return render(request, 'chat/pong.html', context)
+        return render(request, 'online/pong.html', context)
 
     except Room.DoesNotExist:
         context = {
                 "error": "noRoom",
             }
-        return render(request, 'chat/noRoom.html', context)
-    return render(request, 'chat/pong.html')
+        return render(request, 'online/noRoom.html', context)
+    return render(request, 'online/pong.html')

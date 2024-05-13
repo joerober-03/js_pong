@@ -1,5 +1,5 @@
 from channels.routing import ProtocolTypeRouter, URLRouter
-from chat import routing
+from online import routing
 from channels.auth import AuthMiddlewareStack
 import os
 from django.core.asgi import get_asgi_application
