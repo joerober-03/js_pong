@@ -41,7 +41,6 @@
       const ws = new WebSocket("ws://" + window.location.host + "/ws/notification/{{room_name}}/");
       const audio = new Audio("{% static 'utils/1.mp3' %}");
       var room_name = "{{room_name}}";
-      var username = "{{user}}";
     </script>
     <script src="{% static 'index.js' %}"></script>
     <h1></h1>

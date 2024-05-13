@@ -1,33 +1,45 @@
 from django.shortcuts import render, redirect
 from .models import *
 from django.http import JsonResponse
-# import time
+from channels.db import database_sync_to_async
+import time
+import uuid
 
 def CreateRoom(request):
 
     if request.method == 'POST':
-        username = request.POST['username']
-        room = request.POST['room']
-
-        if (room.strip() == "" or username.strip() == ""):
-            context = {
-                "error": "Please enter a valid username and room name",
-            }
-            return render(request, 'chat/index.html', context)
-
         try:
-            get_room = Room.objects.get(room_name=room)
-            if get_room.full == True:
+            room = request.POST['room']
+
+            if (room.strip() == ""):
                 context = {
-                    "error": "This room is full, please try another one",
+                    "error": "Please enter a valid room name",
                 }
                 return render(request, 'chat/index.html', context)
-            return redirect('room', room_name=room, username=username)
 
-        except Room.DoesNotExist:
-            new_room = Room(room_name = room)
-            new_room.save()
-            return redirect('room', room_name=room, username=username)
+            try:
+                get_room = Room.objects.get(room_name=room)
+                if get_room.full == True:
+                    context = {
+                        "error": "This room is full, please try another one",
+                    }
+                    return render(request, 'chat/index.html', context)
+                return redirect('room', room_name=room)
+
+            except Room.DoesNotExist:
+                new_room = Room(room_name = room)
+                new_room.save()
+                return redirect('room', room_name=room)
+        except:
+            try:
+                get_room = Room.objects.get(full=False, quickmatch=True)
+                return redirect('room', room_name=get_room.room_name)
+            except:
+                room = str(uuid.uuid4())
+                new_room = Room(room_name = room, quickmatch=True)
+                new_room.save()
+                return redirect('room', room_name=room)
+
     
     context = {
         "error": "",
@@ -35,7 +47,9 @@ def CreateRoom(request):
 
     return render(request, 'chat/index.html', context)
 
-def PongView(request, room_name, username):
+def PongView(request, room_name):
+    # time.sleep(1)
+    print("in views")
     try:
         get_room = Room.objects.get(room_name=room_name)
         if get_room.full == True:
@@ -44,7 +58,6 @@ def PongView(request, room_name, username):
             }
             return render(request, 'chat/noRoom.html', context)
         context = {
-            "user": username,
             "room_name": room_name,
         }
         return render(request, 'chat/pong.html', context)

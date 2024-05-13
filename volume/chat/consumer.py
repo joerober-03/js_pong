@@ -114,6 +114,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return 2
         
     async def disconnect(self, close_code):
+        print("in consumer")
         async with self.update_lock:
             if self.player_id in self.room_vars[self.room]["players"]:
                 del self.room_vars[self.room]["players"][self.player_id]
@@ -136,6 +137,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # print("in consumer")
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
+
+        if len(self.room_vars[self.room]["players"]) == 0:
+            await self.delete_room()
+            async with self.update_lock:
+                if self.room in self.room_vars:
+                    del self.room_vars[self.room]
+
+    @database_sync_to_async
+    def delete_room(self):
+        Room.objects.filter(room_name=self.room).delete()
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -189,15 +200,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def game_loop_init(self):
-        while self.player_id in self.room_vars[self.room]["players"]:
-            while len(self.room_vars[self.room]["players"]) != 2:
+        while self.room in self.room_vars and self.player_id in self.room_vars[self.room]["players"]:
+            while self.room in self.room_vars and len(self.room_vars[self.room]["players"]) != 2:
                 await asyncio.sleep(0.03)
             await self.send(
                 text_data=json.dumps({"type": "playerNum", "num": 2})
             )
 
-            self.room_vars[self.room]["stop"] = False
-            await self.game_loop()
+            if self.room in self.room_vars:
+                self.room_vars[self.room]["stop"] = False
+                await self.game_loop()
             await asyncio.sleep(0.03)
 
     async def game_loop(self):
@@ -210,6 +222,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             elapsed = now - then
             if (elapsed > fpsInterval):
                 then = now - (elapsed % fpsInterval)
+                print(len(asyncio.all_tasks()))
                 async with self.update_lock:
                     for player in self.room_vars[self.room]["players"].values():
                         if player["moveUp"]:

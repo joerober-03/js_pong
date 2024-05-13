@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% load static %}
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enter Room</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'utils/favicon.ico' %}">
 </head>
 <body>
     <div class="parent">
@@ -12,11 +14,17 @@
             <h1>Enter Room</h1>
             <form action="" method="POST">
                 {% csrf_token %}
-                <label for="">Username</label><br>
-                <input type="text" placeholder="Username" name="username"><br>
                 <label for="">Room name</label><br>
                 <input type="text" placeholder="room name" name="room"><br>
                 <center><button type="submit">Submit</button></center><br>
+            </form>
+            <br>
+            <br>
+            <h1>Quickmatch  </h1>
+            <br>
+            <form action="" method="POST">
+                {% csrf_token %}
+                <center><button type="submit">Enter random room</button></center><br>
             </form>
             <br>
             <br>
