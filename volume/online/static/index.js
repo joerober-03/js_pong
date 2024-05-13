@@ -51,6 +51,7 @@ var gameMod = 0;
 var sound = false;
 var animation_id = -1;
 var isalone = true;
+var time_left = 0;
 
 function reset_board() {
     gameMod = 0;
@@ -178,6 +179,12 @@ function gameLoop() {
         context.font = "100px serif";
         context.fillText("Player 2 won !", 330, 400);
     }
+    if (time_left != 0)
+    {
+        context.fillStyle = "red";
+        context.font = "100px serif";
+        context.fillText(time_left, 575, 190);
+    }
     //window.cancelAnimationFrame(animation_id);
 }
 
@@ -253,6 +260,9 @@ ws.addEventListener("message", event => {
     else if (messageData.type === "sound") {
         play();
     }
-    // if (messageData.type != "stateUpdate")
-    //     console.log(messageData);
+    else if (messageData.type === "countdown") {
+        time_left = messageData.left;
+    }
+    if (messageData.type != "stateUpdate")
+        console.log(messageData);
 });

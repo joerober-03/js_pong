@@ -2,7 +2,6 @@ from django.shortcuts import render, redirect
 from .models import *
 from django.http import JsonResponse
 from channels.db import database_sync_to_async
-import time
 import uuid
 
 def CreateRoom(request):
@@ -48,8 +47,6 @@ def CreateRoom(request):
     return render(request, 'online/index.html', context)
 
 def PongView(request, room_name):
-    # time.sleep(1)
-    print("in views")
     try:
         get_room = Room.objects.get(room_name=room_name)
         if get_room.full == True:

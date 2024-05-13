@@ -114,7 +114,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             return 2
         
     async def disconnect(self, close_code):
-        print("in consumer")
+        # print("in consumer")
         async with self.update_lock:
             if self.player_id in self.room_vars[self.room]["players"]:
                 del self.room_vars[self.room]["players"][self.player_id]
@@ -194,7 +194,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             text_data=json.dumps(
                 {
                     "type": "playerNum",
-                    "objects": event["objects"],
+                    "num": event["objects"],
                 }
             )
         )
@@ -206,9 +206,21 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             await self.send(
                 text_data=json.dumps({"type": "playerNum", "num": 2})
             )
+            
+            a = time.time()
+            while 1:
+                b = time.time()
+                b = 3 - math.floor(b - a)
+                await self.send(
+                    text_data=json.dumps({"type": "countdown", "left": b})
+                )
+                if b == 0:
+                    break
+                await asyncio.sleep(0.03)
 
             if self.room in self.room_vars:
                 self.room_vars[self.room]["stop"] = False
+                # if self.room_vars[self.room]["players"][self.player_id]["side"] == "left":
                 await self.game_loop()
             await asyncio.sleep(0.03)
 
