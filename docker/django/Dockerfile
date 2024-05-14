@@ -18,8 +18,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt \
 
 # copy and execute the initialization script
 COPY /tools/service_setup.sh /home/transcendance/service_setup.sh
-RUN chmod +x /home/transcendance/service_setup.sh \
-    && /home/transcendance/service_setup.sh
+RUN chmod +x /home/transcendance/service_setup.sh
+RUN bash /home/transcendance/service_setup.sh
 
 # set the final working directory
 WORKDIR /home/transcendance/${SERVICE_NAME}

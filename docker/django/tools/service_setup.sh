@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Démarrage de l'initialisation de Django"
 echo "backend name: $SERVICE_NAME"
 
@@ -15,5 +17,5 @@ cd $SERVICE_NAME
 
 # # Create new app
 # python3 manage.py startapp channels_demo
-python3 manage.py makemigrations
-python3 manage.py migrate
+python manage.py makemigrations
+python manage.py migrate
