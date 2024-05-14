@@ -20,8 +20,8 @@ class OnlineConsumer(AsyncWebsocketConsumer):
     #player
     player_width = 15
     player_height = 100
-    playerVelocityUp = -10
-    playerVelocityDown = 10
+    playerVelocityUp = -15
+    playerVelocityDown = 15
 
     #balling
     ball_width = 15
@@ -222,6 +222,8 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 self.room_vars[self.room]["stop"] = False
                 # if self.room_vars[self.room]["players"][self.player_id]["side"] == "left":
                 await self.game_loop()
+                # else:
+                    # return
             await asyncio.sleep(0.03)
 
     async def game_loop(self):
@@ -229,25 +231,38 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         self.ball_direction()
         fpsInterval = 1.0 / 60.0
         then = time.time()
-        while len(self.room_vars[self.room]["players"]) == 2:
+        self.player1 = self.find_player("left")
+        self.player2 = self.find_player("right")
+        self.room_var = self.room_vars[self.room]
+        
+        while len(self.room_var["players"]) == 2:
             now = time.time()
             elapsed = now - then
             if (elapsed > fpsInterval):
                 then = now - (elapsed % fpsInterval)
                 # print(len(asyncio.all_tasks()))
                 async with self.update_lock:
-                    for player in self.room_vars[self.room]["players"].values():
-                        if player["moveUp"]:
-                            if player["yPos"] + self.playerVelocityUp > 0:
-                                player["yPos"] += self.playerVelocityUp
-                            else:
-                                player["yPos"] = 0
-                            
-                        if player["moveDown"]:
-                            if player["yPos"] + self.playerVelocityDown + self.player_height < self.board_height:
-                                player["yPos"] += self.playerVelocityDown
-                            else:
-                                player["yPos"] = self.board_height - self.player_height
+                    if self.player1["moveUp"]:
+                        if self.player1["yPos"] + self.playerVelocityUp > 0:
+                            self.player1["yPos"] += self.playerVelocityUp
+                        else:
+                            self.player1["yPos"] = 0
+                    if self.player1["moveDown"]:
+                        if self.player1["yPos"] + self.playerVelocityDown + self.player_height < self.board_height:
+                            self.player1["yPos"] += self.playerVelocityDown
+                        else:
+                            self.player1["yPos"] = self.board_height - self.player_height
+                    
+                    if self.player2["moveUp"]:
+                        if self.player2["yPos"] + self.playerVelocityUp > 0:
+                            self.player2["yPos"] += self.playerVelocityUp
+                        else:
+                            self.player2["yPos"] = 0
+                    if self.player2["moveDown"]:
+                        if self.player2["yPos"] + self.playerVelocityDown + self.player_height < self.board_height:
+                            self.player2["yPos"] += self.playerVelocityDown
+                        else:
+                            self.player2["yPos"] = self.board_height - self.player_height
 
                 self.calculate_ball_changes()
 
@@ -258,16 +273,18 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                         {"type": "sound", "objects": 1},
                     )
 
-                self.room_vars[self.room]["ball_xPos"] += self.room_vars[self.room]["ball_velocityX"]
-                self.room_vars[self.room]["ball_yPos"] += self.room_vars[self.room]["ball_velocityY"]
+                self.room_var["ball_xPos"] += self.room_var["ball_velocityX"]
+                self.room_var["ball_yPos"] += self.room_var["ball_velocityY"]
                 
-                for player in self.room_vars[self.room]["players"].values():
-                    player["ballX"] = self.room_vars[self.room]["ball_xPos"]
-                    player["ballY"] = self.room_vars[self.room]["ball_yPos"]
+                
+                self.player1["ballX"] = self.room_var["ball_xPos"]
+                self.player1["ballY"] = self.room_var["ball_yPos"]
+                self.player2["ballX"] = self.room_var["ball_xPos"]
+                self.player2["ballY"] = self.room_var["ball_yPos"]
 
                 await self.channel_layer.group_send(
                     self.room_name,
-                    {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
+                    {"type": "state_update", "objects": list(self.room_var["players"].values())},
                 )
 
                 await asyncio.sleep(0.03)
@@ -283,45 +300,42 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     def calculate_ball_changes(self):
 
-        player1 = self.find_player("left")
-        player2 = self.find_player("right")
-
-        if (not player1 or not player2):
+        if (not self.player1 or not self.player2 or not self.room_var):
             return
 
-        if (self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] < 0 or self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height > self.board_height):
-            self.room_vars[self.room]["ball_velocityY"] *= -1
+        if (self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] < 0 or self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] + self.ball_height > self.board_height):
+            self.room_var["ball_velocityY"] *= -1
 
-        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] + self.ball_width >= self.board_width - 11):
-            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height + 2 >= player2["yPos"] and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] - 2 <= player2["yPos"] + self.player_height):
-                self.room_vars[self.room]["ball_velocityY"] = ((self.room_vars[self.room]["ball_yPos"] + self.ball_height / 2) - (player2["yPos"] + self.player_height / 2)) / 7
-                self.room_vars[self.room]["ball_velocityX"] *= -1
-                if self.room_vars[self.room]["ball_velocityX"] < 0:
-                    self.room_vars[self.room]["ball_velocityX"] -= 0.5
+        if (self.room_var["ball_xPos"] + self.room_var["ball_velocityX"] + self.ball_width >= self.board_width - 11):
+            if (self.room_var["stop"] == False and self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] + self.ball_height + 2 >= self.player2["yPos"] and self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] - 2 <= self.player2["yPos"] + self.player_height):
+                self.room_var["ball_velocityY"] = ((self.room_var["ball_yPos"] + self.ball_height / 2) - (self.player2["yPos"] + self.player_height / 2)) / 7
+                self.room_var["ball_velocityX"] *= -1
+                if self.room_var["ball_velocityX"] < 0:
+                    self.room_var["ball_velocityX"] -= 0.5
                 else:
-                    self.room_vars[self.room]["ball_velocityX"] += 0.5
+                    self.room_var["ball_velocityX"] += 0.5
 
                 self.bounce = True
 
-        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] <= 11):
-            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] + self.ball_height + 2 >= player1["yPos"] and self.room_vars[self.room]["ball_yPos"] + self.room_vars[self.room]["ball_velocityY"] - 2 <= player1["yPos"] + self.player_height):
-                self.room_vars[self.room]["ball_velocityY"] = ((self.room_vars[self.room]["ball_yPos"] + self.ball_height / 2) - (player1["yPos"] + self.player_height / 2)) / 7
-                self.room_vars[self.room]["ball_velocityX"] *= -1
-                if (self.room_vars[self.room]["ball_velocityX"] < 0):
-                    self.room_vars[self.room]["ball_velocityX"] -= 0.5
+        if (self.room_var["ball_xPos"] + self.room_var["ball_velocityX"] <= 11):
+            if (self.room_var["stop"] == False and self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] + self.ball_height + 2 >= self.player1["yPos"] and self.room_var["ball_yPos"] + self.room_var["ball_velocityY"] - 2 <= self.player1["yPos"] + self.player_height):
+                self.room_var["ball_velocityY"] = ((self.room_var["ball_yPos"] + self.ball_height / 2) - (self.player1["yPos"] + self.player_height / 2)) / 7
+                self.room_var["ball_velocityX"] *= -1
+                if (self.room_var["ball_velocityX"] < 0):
+                    self.room_var["ball_velocityX"] -= 0.5
                 else:
-                    self.room_vars[self.room]["ball_velocityX"] += 0.5
+                    self.room_var["ball_velocityX"] += 0.5
 
                 self.bounce = True
 
-        if (self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] < 0 or self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] + self.ball_width > self.board_width):
-            if (self.room_vars[self.room]["stop"] == False and self.room_vars[self.room]["ball_xPos"] + self.room_vars[self.room]["ball_velocityX"] < 0):
-                player2["score"] += 1
-            elif self.room_vars[self.room]["stop"] == False:
-                player1["score"] += 1
+        if (self.room_var["ball_xPos"] + self.room_var["ball_velocityX"] < 0 or self.room_var["ball_xPos"] + self.room_var["ball_velocityX"] + self.ball_width > self.board_width):
+            if (self.room_var["stop"] == False and self.room_var["ball_xPos"] + self.room_var["ball_velocityX"] < 0):
+                self.player2["score"] += 1
+            elif self.room_var["stop"] == False:
+                self.player1["score"] += 1
             
             self.init_ball_values()
-            if player2["score"] != 5 and player1["score"] != 5:
+            if self.player2["score"] != 5 and self.player1["score"] != 5:
                 self.ball_direction()
             
     def ball_direction(self):

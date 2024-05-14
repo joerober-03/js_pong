@@ -163,7 +163,7 @@ function gameLoop() {
     {
         if (trigger == true)
         {
-            setTimeout(() => { location.replace("http://" + window.location.host); }, 5000);
+            setTimeout(() => { location.replace("https://" + window.location.host); }, 5000);
             trigger = false;
         }
         context.font = "100px serif";
@@ -173,7 +173,7 @@ function gameLoop() {
     {
         if (trigger == true)
         {
-            setTimeout(() => { location.replace("http://" + window.location.host); }, 5000);
+            setTimeout(() => { location.replace("https://" + window.location.host); }, 5000);
             trigger = false;
         }
         context.font = "100px serif";

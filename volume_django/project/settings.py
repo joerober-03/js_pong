@@ -27,6 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = ['https://localhost']
 
 # Application definition
 
@@ -139,3 +140,7 @@ CHANNEL_LAYERS = {
 # LOGOUT_REDIRECT_URL = "login-user"
 
 STATIC_URL = "static/"
+
+# SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True

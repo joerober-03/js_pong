@@ -1,8 +1,8 @@
 compose_file = docker/docker-compose.yml
 
-volume_dir = volume volume_db
+volume_dir = volume_django volume_db volume_nginx
 
-service = django2
+service = django
 
 all: build up
 

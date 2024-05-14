@@ -25,4 +25,4 @@ RUN chmod +x /home/transcendance/service_setup.sh \
 WORKDIR /home/transcendance/${SERVICE_NAME}
 
 # Command for running the application
-#CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
