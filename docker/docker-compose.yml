@@ -12,8 +12,8 @@ services:
         SERVICE_NAME: ${SERVICE_NAME}
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - django:/home/transcendance/${SERVICE_NAME}
     tty: true
@@ -41,6 +41,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "443:443"
+      - "80:80"
     volumes:
       - nginx:/etc/nginx
     networks:

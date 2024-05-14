@@ -9,5 +9,6 @@ RUN openssl req -newkey rsa:4096 -x509 -sha256 -days 365 -nodes -out /etc/nginx/
 RUN mkdir -p /var/run/nginx
 COPY ./conf/default /etc/nginx/conf.d/default.conf
 COPY ./conf/nginx.conf /etc/nginx/nginx.conf
+COPY ./static /etc/nginx/static
 
 CMD [ "nginx", "-g", "daemon off;" ]
