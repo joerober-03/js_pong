@@ -142,6 +142,17 @@ function draw_board()
 
 var trigger = true;
 
+// Function that returns a Promise for the FPS
+const getFPS = () =>
+    new Promise(resolve =>
+        requestAnimationFrame(t1 =>
+        requestAnimationFrame(t2 => resolve(1000 / (t2 - t1)))
+    )
+)
+
+var time_before = 0;
+var time_after = 0;
+
 function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
 
@@ -230,23 +241,32 @@ ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
     // console.log(messageData);
     if (messageData.type === "stateUpdate") {
-        for (o = 0; o < messageData.objects.length; o++)
-        {
-            if (messageData.objects[o].side == "left")
-            {
-                player1.yPos = messageData.objects[o].yPos;
-                player1.score = messageData.objects[o].score;
-                ball.yPos = messageData.objects[o].ballY;
-                ball.xPos = messageData.objects[o].ballX;
-            }
-            else
-            {
-                player2.yPos = messageData.objects[o].yPos;
-                player2.score = messageData.objects[o].score;
-                ball.yPos = messageData.objects[o].ballY;
-                ball.xPos = messageData.objects[o].ballX;
-            }
-        }
+        getFPS().then(fps => document.getElementById("fps").textContent = "fps: " + Math.floor(fps));
+        // console.log(messageData.objects[0].ballX);
+        // time_after = performance.now();
+        // console.log(time_after - time_before);
+        // time_before = time_after;
+        // for (o = 0; o < messageData.objects.length; o++)
+        // {
+        //     if (messageData.objects[o].side == "left")
+        //     {
+        //         player1.yPos = messageData.objects[o].yPos;
+        //         player1.score = messageData.objects[o].score;
+        //         ball.yPos = messageData.objects[o].ballY;
+        //         ball.xPos = messageData.objects[o].ballX;
+        //     }
+        //     else
+        //     {
+        //         player2.yPos = messageData.objects[o].yPos;
+        //         player2.score = messageData.objects[o].score;
+        //         ball.yPos = messageData.objects[o].ballY;
+        //         ball.xPos = messageData.objects[o].ballX;
+        //     }
+        // }
+        player1.yPos = messageData.objects.player1Pos;
+        player2.yPos = messageData.objects.player2Pos;
+        ball.xPos = messageData.objects.ball_xPos;
+        ball.yPos = messageData.objects.ball_yPos;
     }
     else if (messageData.type === "playerId") {
         player_id = messageData.playerId;
@@ -257,12 +277,18 @@ ws.addEventListener("message", event => {
         else if (messageData.num === 1)
             isalone = true;
     }
+    else if (messageData.type === "score") {
+        if (messageData.objects.player === 1)
+            player1.score = messageData.objects.score;
+        else if (messageData.objects.player === 2)
+            player2.score = messageData.objects.score;
+    }
     else if (messageData.type === "sound") {
         play();
     }
     else if (messageData.type === "countdown") {
         time_left = messageData.left;
     }
-    if (messageData.type != "stateUpdate")
-        console.log(messageData);
+    // if (messageData.type != "stateUpdate")
+    //     console.log(messageData);
 });
