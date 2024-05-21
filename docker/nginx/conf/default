@@ -29,6 +29,9 @@ server {
                 proxy_set_header Connection $connection_upgrade;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
+
+                #disable buffering for websockets
+                proxy_buffering off;
         }
 
         location / {

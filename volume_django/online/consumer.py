@@ -1,4 +1,5 @@
 import json
+import rapidjson
 import random
 import uuid
 import asyncio
@@ -44,7 +45,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
         #sends the player his ID
         await self.send(
-            text_data=json.dumps({"type": "playerId", "playerId": self.player_id})
+            text_data=rapidjson.dumps({"type": "playerId", "playerId": self.player_id})
         )
 
         #add new room if it doesn't already exist
@@ -91,8 +92,8 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
         #starts the initialization of the game loop
         # await self.game_loop_init()
-        # if len(self.room_vars[self.room]["players"]) == 1:
-        init = asyncio.create_task(self.game_loop_init())
+        if len(self.room_vars[self.room]["players"]) == 1:
+            init = asyncio.create_task(self.game_loop())
 
     #checks if room is full then updates database
     @database_sync_to_async
@@ -126,6 +127,11 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             if self.player_id in self.room_vars[self.room]["players"]:
                 del self.room_vars[self.room]["players"][self.player_id]
 
+        await self.check_full()
+        # print("in consumer")
+
+        await self.channel_layer.group_discard(self.room_name, self.channel_name)
+
         #tells the other client that the opponent left
         if self.assign_player_side() != 2:
             await self.channel_layer.group_send(
@@ -141,11 +147,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 self.room_name,
                 {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
             )
-
-        await self.check_full()
-        # print("in consumer")
-
-        await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
         #deletes room if empty
         if len(self.room_vars[self.room]["players"]) == 0:
@@ -182,7 +183,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     async def state_update(self, event):
         await self.send(
-            text_data=json.dumps(
+            text_data=rapidjson.dumps(
                 {
                     "type": "stateUpdate",
                     "objects": event["objects"],
@@ -192,7 +193,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     async def sound(self, event):
         await self.send(
-            text_data=json.dumps(
+            text_data=rapidjson.dumps(
                 {
                     "type": "sound",
                 }
@@ -201,7 +202,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     async def player_num(self, event):
         await self.send(
-            text_data=json.dumps(
+            text_data=rapidjson.dumps(
                 {
                     "type": "playerNum",
                     "num": event["objects"],
@@ -211,7 +212,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     async def new_score(self, event):
         await self.send(
-            text_data=json.dumps(
+            text_data=rapidjson.dumps(
                 {
                     "type": "score",
                     "objects": event["objects"],
@@ -226,17 +227,23 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
         #tells the javascript side that another player has entered the room
         await self.send(
-            text_data=json.dumps({"type": "playerNum", "num": 2})
+            text_data=rapidjson.dumps({"type": "playerNum", "num": 2})
         )
         
         #countdown at the start of the game
+        self.player1 = self.find_player("left")
+        self.player2 = self.find_player("right")
+        self.room_var = self.room_vars[self.room]
         a = time.time()
+        c = 0
         while 1:
             b = time.time()
             b = 3 - math.floor(b - a)
-            await self.send(
-                text_data=json.dumps({"type": "countdown", "left": b})
-            )
+            if b != c:
+                await self.send(
+                    text_data=rapidjson.dumps({"type": "countdown", "left": b})
+                )
+            c = b
             if b == 0:
                 break
             await asyncio.sleep(0.03)
@@ -251,6 +258,32 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 # return
 
     async def game_loop(self):
+        while self.room in self.room_vars and len(self.room_vars[self.room]["players"]) != 2:
+            await asyncio.sleep(0.03)
+
+        await self.channel_layer.group_send(
+            self.room_name,
+            {"type": "player_num", "objects": 2},
+        )
+
+        self.player1 = self.find_player("left")
+        self.player2 = self.find_player("right")
+        self.room_var = self.room_vars[self.room]
+
+        # a = time.time()
+        # c = 0
+        # while 1:
+        #     b = time.time()
+        #     b = 3 - math.floor(b - a)
+        #     if b != c:
+        #         await self.send(
+        #             text_data=rapidjson.dumps({"type": "countdown", "left": b})
+        #         )
+        #     c = b
+        #     if b == 0:
+        #         break
+        #     await asyncio.sleep(0.03)
+
         #initializes ball direction/position
         self.init_ball_values()
         self.ball_direction()
@@ -258,90 +291,93 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         #initialize fps restriction
         fpsInterval = 1.0 / 60.0
         then = asyncio.get_event_loop().time()
+        
 
         #new variables are declared to hopefully reduce calculation time
-        self.player1 = self.find_player("left")
-        self.player2 = self.find_player("right")
-        self.room_var = self.room_vars[self.room]
-        # print("aaaa", len(asyncio.all_tasks()))
+        # self.player1 = self.find_player("left")
+        # self.player2 = self.find_player("right")
+        # self.room_var = self.room_vars[self.room]
 
         #the main loop
         while len(self.room_var["players"]) == 2:
+
             #the 60 fps rule
-            # now = asyncio.get_event_loop().time()
-            # elapsed = now - then
-            # if (elapsed > fpsInterval):
-                # then = now - (elapsed % fpsInterval)
+            now = asyncio.get_event_loop().time()
+            elapsed = now - then
+            if (elapsed > fpsInterval):
+                then = now - (elapsed % fpsInterval)
 
-            #player movement
-            async with self.update_lock:
-                if self.player1["moveUp"]:
-                    if self.player1["yPos"] - self.playerVelocity > 0:
-                        self.player1["yPos"] -= self.playerVelocity
-                    else:
-                        self.player1["yPos"] = 0
-                if self.player1["moveDown"]:
-                    if self.player1["yPos"] + self.playerVelocity + self.player_height < self.board_height:
-                        self.player1["yPos"] += self.playerVelocity
-                    else:
-                        self.player1["yPos"] = self.board_height - self.player_height
+                #player movement
+                await self.move_players()
+
+                #calculate ball collisions
+                await self.calculate_ball_changes()
+
+                #if == True, tells the javascript to play a sound
+                if self.bounce:
+                    self.bounce = False
+                    await self.channel_layer.group_send(
+                        self.room_name,
+                        {"type": "sound"},
+                    )
+
+                #if != 0, tells the player has scored
+                if self.score:
+                    if self.score == 1:
+                        await self.channel_layer.group_send(
+                            self.room_name,
+                            {"type": "new_score", "objects": {"player": 1, "score": self.player1["score"]}},
+                        )
+                    elif self.score == 2:
+                        await self.channel_layer.group_send(
+                            self.room_name,
+                            {"type": "new_score", "objects": {"player": 2, "score": self.player2["score"]}},
+                        )
+                    self.score = 0
+
+                # print("aaaa", len(asyncio.all_tasks()))
+                # tasks = asyncio.all_tasks()
+                # print(f"Number of tasks: {len(tasks)}")
+
+                # for task in tasks:
+                #     print(task)
                 
-                if self.player2["moveUp"]:
-                    if self.player2["yPos"] - self.playerVelocity > 0:
-                        self.player2["yPos"] -= self.playerVelocity
-                    else:
-                        self.player2["yPos"] = 0
-                if self.player2["moveDown"]:
-                    if self.player2["yPos"] + self.playerVelocity + self.player_height < self.board_height:
-                        self.player2["yPos"] += self.playerVelocity
-                    else:
-                        self.player2["yPos"] = self.board_height - self.player_height
-
-            #calculate ball collisions
-            self.calculate_ball_changes()
-
-            #if == True, tells the javascript to play a sound
-            if self.bounce:
-                self.bounce = False
+                #the main json sent to the javascript with the players pos as well as ball pos
+                # if self.room_var["players"][self.player_id]["side"] == "left":
                 await self.channel_layer.group_send(
                     self.room_name,
-                    {"type": "sound"},
+                    {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
                 )
+                # test = asyncio.create_task(self.aw_hell_nah_that_shit_aint_gonna_work_bruh())
+                # await self.send(
+                #     text_data=rapidjson.dumps({"type": "stateUpdate", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}})
+                # )
 
-            #if != 0, tells the player has scored
-            if self.score:
-                if self.score == 1:
-                    await self.channel_layer.group_send(
-                        self.room_name,
-                        {"type": "new_score", "objects": {"player": 1, "score": self.player1["score"]}},
-                    )
-                elif self.score == 2:
-                    await self.channel_layer.group_send(
-                        self.room_name,
-                        {"type": "new_score", "objects": {"player": 2, "score": self.player2["score"]}},
-                    )
-                self.score = 0
+                #gives time to the rest of the processes to operate
+                await asyncio.sleep(1 / 60)
 
-            #ball movement
-            # if self.room_var["players"][self.player_id]["side"] == "left":
-            self.room_var["ball_xPos"] += self.room_var["ball_velocityX"]
-            self.room_var["ball_yPos"] += self.room_var["ball_velocityY"]
-            
-            #the main json sent to the javascript with the players pos as well as ball pos
-            # if self.room_var["players"][self.player_id]["side"] == "left":
-            await self.channel_layer.group_send(
-                self.room_name,
-                {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
-            )
-            # await self.send(
-            #     text_data=json.dumps({"type": "stateUpdate", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}})
-            # )
+    async def aw_hell_nah_that_shit_aint_gonna_work_bruh(self):
+        await self.channel_layer.group_send(
+            self.room_name,
+            {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
+        )
 
-            #gives time to the rest of the processes to operate
-            await asyncio.sleep(1 / 60)
+    #calculate player movement
+    async def move_players(self):
+        for player in self.room_var["players"].values():
+            if player["moveUp"]:
+                if player["yPos"] - self.playerVelocity > 0:
+                    player["yPos"] -= self.playerVelocity
+                else:
+                    player["yPos"] = 0
+            elif player["moveDown"]:
+                if player["yPos"] + self.playerVelocity + self.player_height < self.board_height:
+                    player["yPos"] += self.playerVelocity
+                else:
+                    player["yPos"] = self.board_height - self.player_height
 
     #most of the game logic/calculations are here
-    def calculate_ball_changes(self):
+    async def calculate_ball_changes(self):
 
         #some variables are set to hopefully reduce calculation time
         ball_yPos = self.room_var["ball_yPos"]
@@ -403,6 +439,9 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             self.room_var["ball_yPos"] = ball_yPos
             self.room_var["ball_velocityX"] = ball_velocityX
             self.room_var["ball_velocityY"] = ball_velocityY
+
+        self.room_var["ball_xPos"] += self.room_var["ball_velocityX"]
+        self.room_var["ball_yPos"] += self.room_var["ball_velocityY"]
 
     #chooses a random direction for the ball to start
     def ball_direction(self):

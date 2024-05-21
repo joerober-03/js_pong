@@ -161,10 +161,8 @@ function gameLoop() {
     // let elapsed = now - then;
 
     //if (elapsed > fpsInterval && stop == false)
-    if (stop == false) {
         //then = now - (elapsed % fpsInterval);
-        draw_board();
-    }
+    draw_board();
     if (isalone == true)
     {
         context.fillStyle = "white";
@@ -241,7 +239,7 @@ ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
     // console.log(messageData);
     if (messageData.type === "stateUpdate") {
-        getFPS().then(fps => document.getElementById("fps").textContent = "fps: " + Math.floor(fps));
+        // getFPS().then(fps => document.getElementById("fps").textContent = "fps: " + Math.floor(fps));
         // console.log(messageData.objects[0].ballX);
         // time_after = performance.now();
         // console.log(time_after - time_before);
@@ -268,15 +266,6 @@ ws.addEventListener("message", event => {
         ball.xPos = messageData.objects.ball_xPos;
         ball.yPos = messageData.objects.ball_yPos;
     }
-    else if (messageData.type === "playerId") {
-        player_id = messageData.playerId;
-    }
-    else if (messageData.type === "playerNum") {
-        if (messageData.num === 2)
-            isalone = false;
-        else if (messageData.num === 1)
-            isalone = true;
-    }
     else if (messageData.type === "score") {
         if (messageData.objects.player === 1)
             player1.score = messageData.objects.score;
@@ -285,6 +274,15 @@ ws.addEventListener("message", event => {
     }
     else if (messageData.type === "sound") {
         play();
+    }
+    else if (messageData.type === "playerNum") {
+        if (messageData.num === 2)
+            isalone = false;
+        else if (messageData.num === 1)
+            isalone = true;
+    }
+    else if (messageData.type === "playerId") {
+        player_id = messageData.playerId;
     }
     else if (messageData.type === "countdown") {
         time_left = messageData.left;
