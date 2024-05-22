@@ -17,7 +17,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
     board_width = 1200
 
     #player
-    player_width = 15
     player_height = 100
     playerVelocity = 15
 
@@ -25,10 +24,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
     ball_width = 15
     ball_height = 15
     ball_velocity = 10
-
-    #these variables are changed to decide wether to send certain jsons or not
-    bounce = False
-    score = 0
 
     #where all the rooms are stored
     room_vars = {}
@@ -48,13 +43,12 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             text_data=rapidjson.dumps({"type": "playerId", "playerId": self.player_id})
         )
 
-        #add new room if it doesn't already exist
+        #create and add new room if it doesn't already exist
         if self.room not in self.room_vars:
             async with self.update_lock:
                 self.room_vars[self.room] = {
                     "players" : {},
-                    "player_num" : 0,
-                    "stop" : False,
+                    "running" : False,
                     "ball_xPos" : (self.board_width / 2) - (self.ball_width / 2),
                     "ball_yPos" : (self.board_height / 2) - (self.ball_height / 2),
                     "ball_velocityY" : 0,
@@ -62,7 +56,8 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 }
 
         #adds players to the room
-        player_side = self.assign_player_side()
+        async with self.update_lock:
+            player_side = self.assign_player_side()
         if player_side == 0:
             async with self.update_lock:
                 self.room_vars[self.room]["players"][self.player_id] = {
@@ -88,11 +83,13 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             return
 
         #updates the database to determine wether another player can enter or not
-        await self.check_full()
+        async with self.update_lock:
+            await self.check_full()
 
         #starts the initialization of the game loop
         # await self.game_loop_init()
-        if len(self.room_vars[self.room]["players"]) == 1:
+        if not self.room_vars[self.room]["running"]:
+            # async with self.update_lock:
             init = asyncio.create_task(self.game_loop())
 
     #checks if room is full then updates database
@@ -122,15 +119,16 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             return 2
         
     async def disconnect(self, close_code):
+        if self.room_vars[self.room]["running"]:
+            self.room_vars[self.room]["running"] = False
+
         #removes the player from the dict
         async with self.update_lock:
             if self.player_id in self.room_vars[self.room]["players"]:
                 del self.room_vars[self.room]["players"][self.player_id]
-
-        await self.check_full()
+        async with self.update_lock:
+            await self.check_full()
         # print("in consumer")
-
-        await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
         #tells the other client that the opponent left
         if self.assign_player_side() != 2:
@@ -138,22 +136,31 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 self.room_name,
                 {"type": "player_num", "objects": 1},
             )
-            self.room_vars[self.room]["stop"] = True
 
             self.reset_board()
             
             #sends an update to the other player so that the board looks reset on the frontend
             await self.channel_layer.group_send(
                 self.room_name,
-                {"type": "state_update", "objects": list(self.room_vars[self.room]["players"].values())},
+                {"type": "state_update", "objects": {"player1Pos": (self.board_height / 2 - self.player_height / 2), "player2Pos": (self.board_height / 2 - self.player_height / 2), "ball_yPos": ((self.board_height / 2) - (self.ball_height / 2)), "ball_xPos": ((self.board_width / 2) - (self.ball_width / 2))}},
+            )
+            await self.channel_layer.group_send(
+                self.room_name,
+                {"type": "new_score", "objects": {"player": 1, "score": 0}},
+            )
+            await self.channel_layer.group_send(
+                self.room_name,
+                {"type": "new_score", "objects": {"player": 2, "score": 0}},
             )
 
         #deletes room if empty
         if len(self.room_vars[self.room]["players"]) == 0:
-            await self.delete_room()
             async with self.update_lock:
+                await self.delete_room()
                 if self.room in self.room_vars:
                     del self.room_vars[self.room]
+
+        await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
     #take a guess
     @database_sync_to_async
@@ -161,8 +168,8 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         Room.objects.filter(room_name=self.room).delete()
 
     async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        message_type = text_data_json.get("type", "")
+        text_data_json = rapidjson.loads(text_data)
+        message_type = text_data_json["type"]
 
         player_id = text_data_json["playerId"]
 
@@ -182,6 +189,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             player["moveUp"] = False
 
     async def state_update(self, event):
+        # async with self.update_lock:
         await self.send(
             text_data=rapidjson.dumps(
                 {
@@ -250,7 +258,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
         #checks if room still exists then launch the main game loop
         if self.room in self.room_vars:
-            self.room_vars[self.room]["stop"] = False
             if self.room_vars[self.room]["players"][self.player_id]["side"] == "left":
                 await self.game_loop()
             # game_loo = asyncio.create_task(self.game_loop())
@@ -258,8 +265,13 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 # return
 
     async def game_loop(self):
+        if not self.room_vars[self.room]["running"]:
+            self.room_vars[self.room]["running"] = True
         while self.room in self.room_vars and len(self.room_vars[self.room]["players"]) != 2:
             await asyncio.sleep(0.03)
+        
+        if self.room not in self.room_vars:
+            return
 
         await self.channel_layer.group_send(
             self.room_name,
@@ -309,31 +321,11 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
                 #player movement
                 await self.move_players()
+                # move = asyncio.create_task(self.move_players())
 
                 #calculate ball collisions
                 await self.calculate_ball_changes()
-
-                #if == True, tells the javascript to play a sound
-                if self.bounce:
-                    self.bounce = False
-                    await self.channel_layer.group_send(
-                        self.room_name,
-                        {"type": "sound"},
-                    )
-
-                #if != 0, tells the player has scored
-                if self.score:
-                    if self.score == 1:
-                        await self.channel_layer.group_send(
-                            self.room_name,
-                            {"type": "new_score", "objects": {"player": 1, "score": self.player1["score"]}},
-                        )
-                    elif self.score == 2:
-                        await self.channel_layer.group_send(
-                            self.room_name,
-                            {"type": "new_score", "objects": {"player": 2, "score": self.player2["score"]}},
-                        )
-                    self.score = 0
+                # move_ball = asyncio.create_task(self.calculate_ball_changes())
 
                 # print("aaaa", len(asyncio.all_tasks()))
                 # tasks = asyncio.all_tasks()
@@ -349,18 +341,15 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                     {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
                 )
                 # test = asyncio.create_task(self.aw_hell_nah_that_shit_aint_gonna_work_bruh())
-                # await self.send(
-                #     text_data=rapidjson.dumps({"type": "stateUpdate", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}})
-                # )
 
                 #gives time to the rest of the processes to operate
-                await asyncio.sleep(1 / 60)
+                await asyncio.sleep(fpsInterval)
 
-    async def aw_hell_nah_that_shit_aint_gonna_work_bruh(self):
-        await self.channel_layer.group_send(
-            self.room_name,
-            {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
-        )
+    # async def aw_hell_nah_that_shit_aint_gonna_work_bruh(self):
+    #     await self.channel_layer.group_send(
+    #         self.room_name,
+    #         {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
+    #     )
 
     #calculate player movement
     async def move_players(self):
@@ -394,7 +383,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
         #checks if the ball hit the right paddle
         if (ball_xPos + ball_velocityX + self.ball_width >= self.board_width - 11):
-            if (self.room_var["stop"] == False and ball_yPos + ball_velocityY + self.ball_height + 2 >= self.player2["yPos"] and ball_yPos + ball_velocityY - 2 <= self.player2["yPos"] + self.player_height):
+            if (ball_yPos + ball_velocityY + self.ball_height + 2 >= self.player2["yPos"] and ball_yPos + ball_velocityY - 2 <= self.player2["yPos"] + self.player_height):
                 ball_velocityY = ((ball_yPos + self.ball_height / 2) - (self.player2["yPos"] + self.player_height / 2)) / 7
                 ball_velocityX *= -1
                 if ball_velocityX < 0:
@@ -402,11 +391,14 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 else:
                     ball_velocityX += 0.5
 
-                self.bounce = True
+                await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "sound"},
+                )
 
         #checks if the ball hit the left paddle
         if (ball_xPos + ball_velocityX <= 11):
-            if (self.room_var["stop"] == False and ball_yPos + ball_velocityY + self.ball_height + 2 >= self.player1["yPos"] and ball_yPos + ball_velocityY - 2 <= self.player1["yPos"] + self.player_height):
+            if (ball_yPos + ball_velocityY + self.ball_height + 2 >= self.player1["yPos"] and ball_yPos + ball_velocityY - 2 <= self.player1["yPos"] + self.player_height):
                 ball_velocityY = ((ball_yPos + self.ball_height / 2) - (self.player1["yPos"] + self.player_height / 2)) / 7
                 ball_velocityX *= -1
                 if (ball_velocityX < 0):
@@ -414,16 +406,25 @@ class OnlineConsumer(AsyncWebsocketConsumer):
                 else:
                     ball_velocityX += 0.5
 
-                self.bounce = True
+                await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "sound"},
+                )
 
         #checks if a player has scored
         if (ball_xPos + ball_velocityX < 0 or ball_xPos + ball_velocityX + self.ball_width > self.board_width):
-            if (self.room_var["stop"] == False and ball_xPos + ball_velocityX < 0):
+            if (ball_xPos + ball_velocityX < 0):
                 self.player2["score"] += 1
-                self.score = 2
-            elif self.room_var["stop"] == False:
+                await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "new_score", "objects": {"player": 2, "score": self.player2["score"]}},
+                )
+            else:
                 self.player1["score"] += 1
-                self.score = 1
+                await self.channel_layer.group_send(
+                    self.room_name,
+                    {"type": "new_score", "objects": {"player": 1, "score": self.player1["score"]}},
+                )
         
             self.room_var["ball_xPos"] = ball_xPos
             self.room_var["ball_yPos"] = ball_yPos

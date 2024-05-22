@@ -163,7 +163,7 @@ function gameLoop() {
     //if (elapsed > fpsInterval && stop == false)
         //then = now - (elapsed % fpsInterval);
     draw_board();
-    if (isalone == true)
+    if (isalone == true && player1.score != 5 && player2.score != 5)
     {
         context.fillStyle = "white";
         context.fillText("waiting for a second player", 325, 315);
