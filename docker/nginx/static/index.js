@@ -1,6 +1,5 @@
-//const ws = new WebSocket("ws://10.19.246.185:8000/ws/notification/room/");
-
 var player_id = 0;
+var side = "none";
 //board
 let board_height = 800;
 let board_width = 1200;
@@ -8,7 +7,7 @@ let board_width = 1200;
 //player
 let player_width = 15;
 let player_height = 100;
-let playerVelocity = 0;
+let playerVelocity = 15;
 
 //balling
 let ball_width = 15;
@@ -20,79 +19,33 @@ let ball = {
     height: ball_height,
     xPos: (board_width / 2) - (ball_width / 2),
     yPos: (board_height / 2) - (ball_height / 2),
-    velocityY: 0,
-    velocityX: 0,
-    velocityXTmp: 0,
-    velocityYTmp: 0,
 }
 
 let player1 = {
     xPos: 10,
     yPos: board_height / 2 - player_height / 2,
-    width: player_width,
-    height: player_height,
-    velocityY: playerVelocity,
     score: 0,
-    prediction: -1,
+    velocity: 0,
 }
 
 let player2 = {
     xPos: board_width - player_width - 10,
     yPos: board_height / 2 - player_height / 2,
-    width: player_width,
-    height: player_height,
-    velocityY: playerVelocity,
     score: 0,
-    prediction: -1,
+    velocity: 0,
 }
 
 var stop = false;
-var gameMod = 0;
 var sound = false;
 var animation_id = -1;
 var isalone = true;
 var time_left = 0;
-
-function reset_board() {
-    gameMod = 0;
-    player2.xPos = board_width - player_width - 10;
-    player2.yPos = board_height / 2 - player_height / 2;
-    player2.width = player_width;
-    player2.height = player_height;
-    player2.velocityY = playerVelocity;
-    //player2.score = 0;
-    player2.prediction = -1;
-    player1.xPos = 10;
-    player1.yPos = board_height / 2 - player_height / 2;
-    player1.width = player_width;
-    player1.height = player_height;
-    player1.velocityY = playerVelocity;
-    //player1.score = 0;
-    player1.prediction = -1;
-    ball.width = ball_width;
-    ball.height = ball_height;
-    ball.xPos = (board_width / 2) - (ball_width / 2);
-    ball.yPos = (board_height / 2) - (ball_height / 2);
-    ball.velocityY = 0;
-    ball.velocityX = 0;
-    ball.velocityXTmp = 0;
-    ball.velocityYTmp = 0;
-}
 
 function sound_change() {
     if (sound == false)
         sound = true;
     else
         sound = false;
-}
-
-function stop_playing() {
-    reset_board();
-    if (stop == false) {
-        player1.score = 0;
-        player2.score = 0;
-    }
-    //window.cancelAnimationFrame(animation_id);
 }
 
 var fpsInterval;
@@ -114,16 +67,17 @@ window.onload = function () {
     document.addEventListener("keyup", stopPlayer);
     draw_board();
     gameLoop();
+    // startAnimating(60);
 }
 
 function draw_board()
 {
     context.fillStyle = "white";
     //player 1
-    context.fillRect(player1.xPos, player1.yPos, player1.width, player1.height);
+    context.fillRect(player1.xPos, player1.yPos, player_width, player_height);
 
     //player 2
-    context.fillRect(player2.xPos, player2.yPos, player2.width, player2.height);
+    context.fillRect(player2.xPos, player2.yPos, player_width, player_height);
 
     //middle_line
     fill_middle_lines();
@@ -162,6 +116,22 @@ function gameLoop() {
 
     //if (elapsed > fpsInterval && stop == false)
         //then = now - (elapsed % fpsInterval);
+    // if (isalone == false)
+    // {
+    //     if (player1.yPos + player1.velocity > 0 && player1.yPos + player1.velocity + player_height < board_height)
+    //         player1.yPos += player1.velocity;
+    //     else if (!(player1.yPos + player1.velocity > 0))
+    //         player1.yPos = 0;
+    //     else
+    //         player1.yPos = board_height - player_height;
+
+    //     if (player2.yPos + player2.velocity > 0 && player2.yPos + player2.velocity + player_height < board_height)
+    //         player2.yPos += player2.velocity;
+    //     else if (!(player2.yPos + player2.velocity > 0))
+    //         player2.yPos = 0;
+    //     else
+    //         player2.yPos = board_height - player_height;
+    // }
     draw_board();
     if (isalone == true && player1.score != 5 && player2.score != 5)
     {
@@ -214,10 +184,18 @@ var lastSent = "none";
 
 function movePlayer(e) {
     if (e.key == 'w' && lastSent != "keyW") {
+        // if (side == "left")
+        //     player1.velocity -= playerVelocity;
+        // else
+        //     player2.velocity -= playerVelocity;
         ws.send(JSON.stringify({ type: "keyW", playerId: player_id }));
         lastSent = "keyW";
     }
     if (e.key == 's' && lastSent != "keyS") {
+        // if (side == "left")
+        //     player1.velocity += playerVelocity;
+        // else
+        //     player2.velocity += playerVelocity;
         ws.send(JSON.stringify({ type: "keyS", playerId: player_id }));
         lastSent = "keyS"
     }
@@ -226,12 +204,20 @@ function movePlayer(e) {
 //allows the player to stop if key is released
 function stopPlayer(e) {
     if (e.key == 'w' && lastSent != "keyStop") {
+        // if (side == "left")
+        //     player1.velocity = 0;
+        // else
+        //     player2.velocity = 0;
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
         lastSent = "keyStop"
     }
     if (e.key == 's' && lastSent != "keyStop") {
+        // if (side == "left")
+        //     player1.velocity = 0;
+        // else
+        //     player2.velocity = 0;
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
-        lastSent = "keyStop"
+        lastSent = "keyStop"  
     }
 }
 
@@ -282,7 +268,8 @@ ws.addEventListener("message", event => {
             isalone = true;
     }
     else if (messageData.type === "playerId") {
-        player_id = messageData.playerId;
+        player_id = messageData.objects.id;
+        side = messageData.objects.side;
     }
     else if (messageData.type === "countdown") {
         time_left = messageData.left;

@@ -1,13 +1,24 @@
+#currently not used
 import json
+#replaces json to hopefully make it faster
 import rapidjson
+#to set the random ball trajectories at the start of a game
 import random
+#to make ids
 import uuid
+#to make the program asyncio
 import asyncio
+#used in a few calculus
 import math
+#used to set fps and other
 import time
+#to make the delay when ball spawns
 from threading import Timer
+#to make the class async
 from channels.generic.websocket import AsyncWebsocketConsumer
+#to make functions that access the database
 from channels.db import database_sync_to_async
+#models aka Room
 from online.models import *
 
 class OnlineConsumer(AsyncWebsocketConsumer):
@@ -37,11 +48,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         #adds player to the room layer
         await self.channel_layer.group_add(self.room_name, self.channel_name)
         await self.accept()
-
-        #sends the player his ID
-        await self.send(
-            text_data=rapidjson.dumps({"type": "playerId", "playerId": self.player_id})
-        )
 
         #create and add new room if it doesn't already exist
         if self.room not in self.room_vars:
@@ -82,14 +88,17 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             print("both sides taken ?")
             return
 
+        #sends the player his ID
+        await self.send(
+            text_data=rapidjson.dumps({"type": "playerId", "objects": {"id": self.player_id, "side": self.room_vars[self.room]["players"][self.player_id]["side"]}})
+        )
+
         #updates the database to determine wether another player can enter or not
         async with self.update_lock:
             await self.check_full()
 
         #starts the initialization of the game loop
-        # await self.game_loop_init()
         if not self.room_vars[self.room]["running"]:
-            # async with self.update_lock:
             init = asyncio.create_task(self.game_loop())
 
     #checks if room is full then updates database
@@ -167,6 +176,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
     def delete_room(self):
         Room.objects.filter(room_name=self.room).delete()
 
+    #this function is triggered when a client sends a message
     async def receive(self, text_data):
         text_data_json = rapidjson.loads(text_data)
         message_type = text_data_json["type"]
@@ -228,6 +238,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             )
         )
 
+    #currently not used
     async def game_loop_init(self):
         #waits for a second player to enter the room
         while self.room in self.room_vars and len(self.room_vars[self.room]["players"]) != 2:
@@ -278,10 +289,12 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             {"type": "player_num", "objects": 2},
         )
 
+        #variables are declared before start of game to hopefully reduce calculation time
         self.player1 = self.find_player("left")
         self.player2 = self.find_player("right")
         self.room_var = self.room_vars[self.room]
 
+        ##timer which seems to slow down the start of the game
         # a = time.time()
         # c = 0
         # while 1:
@@ -303,12 +316,6 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         #initialize fps restriction
         fpsInterval = 1.0 / 60.0
         then = asyncio.get_event_loop().time()
-        
-
-        #new variables are declared to hopefully reduce calculation time
-        # self.player1 = self.find_player("left")
-        # self.player2 = self.find_player("right")
-        # self.room_var = self.room_vars[self.room]
 
         #the main loop
         while len(self.room_var["players"]) == 2:
