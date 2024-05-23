@@ -16,12 +16,13 @@ import time
 from threading import Timer
 #to make the class async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.generic.websocket import AsyncJsonWebsocketConsumer
 #to make functions that access the database
 from channels.db import database_sync_to_async
 #models aka Room
 from online.models import *
 
-class OnlineConsumer(AsyncWebsocketConsumer):
+class OnlineConsumer(AsyncJsonWebsocketConsumer):
 
     #board
     board_height = 800
@@ -89,9 +90,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             return
 
         #sends the player his ID
-        await self.send(
-            text_data=rapidjson.dumps({"type": "playerId", "objects": {"id": self.player_id, "side": self.room_vars[self.room]["players"][self.player_id]["side"]}})
-        )
+        await self.send_json({"type": "playerId", "objects": {"id": self.player_id, "side": self.room_vars[self.room]["players"][self.player_id]["side"]}})
 
         #updates the database to determine wether another player can enter or not
         async with self.update_lock:
@@ -177,11 +176,31 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         Room.objects.filter(room_name=self.room).delete()
 
     #this function is triggered when a client sends a message
-    async def receive(self, text_data):
-        text_data_json = rapidjson.loads(text_data)
-        message_type = text_data_json["type"]
+    # async def receive(self, text_data):
+    #     text_data_json = rapidjson.loads(text_data)
+    #     message_type = text_data_json["type"]
 
-        player_id = text_data_json["playerId"]
+    #     player_id = text_data_json["playerId"]
+
+    #     player = self.room_vars[self.room]["players"][self.player_id]
+    #     if not player:
+    #         print("no player")
+    #         return
+
+    #     if message_type == "keyW":
+    #         player["moveUp"] = True
+    #         player["moveDown"] = False
+    #     elif message_type == "keyS":
+    #         player["moveDown"] = True
+    #         player["moveUp"] = False
+    #     elif message_type == "keyStop":
+    #         player["moveDown"] = False
+    #         player["moveUp"] = False
+
+    async def receive_json(self, content):
+        message_type = content["type"]
+
+        player_id = content["playerId"]
 
         player = self.room_vars[self.room]["players"][self.player_id]
         if not player:
@@ -200,42 +219,34 @@ class OnlineConsumer(AsyncWebsocketConsumer):
 
     async def state_update(self, event):
         # async with self.update_lock:
-        await self.send(
-            text_data=rapidjson.dumps(
-                {
-                    "type": "stateUpdate",
-                    "objects": event["objects"],
-                }
-            )
+        await self.send_json(
+            {
+                "type": "stateUpdate",
+                "objects": event["objects"],
+            }
         )
 
     async def sound(self, event):
-        await self.send(
-            text_data=rapidjson.dumps(
-                {
-                    "type": "sound",
-                }
-            )
+        await self.send_json(
+            {
+                "type": "sound",
+            }
         )
 
     async def player_num(self, event):
-        await self.send(
-            text_data=rapidjson.dumps(
-                {
-                    "type": "playerNum",
-                    "num": event["objects"],
-                }
-            )
+        await self.send_json(
+            {
+                "type": "playerNum",
+                "num": event["objects"],
+            }
         )
 
     async def new_score(self, event):
-        await self.send(
-            text_data=rapidjson.dumps(
-                {
-                    "type": "score",
-                    "objects": event["objects"],
-                }
-            )
+        await self.send_json(
+            {
+                "type": "score",
+                "objects": event["objects"],
+            }
         )
 
     #currently not used
@@ -245,9 +256,7 @@ class OnlineConsumer(AsyncWebsocketConsumer):
             await asyncio.sleep(0.03)
 
         #tells the javascript side that another player has entered the room
-        await self.send(
-            text_data=rapidjson.dumps({"type": "playerNum", "num": 2})
-        )
+        await self.send_json({"type": "playerNum", "num": 2})
         
         #countdown at the start of the game
         self.player1 = self.find_player("left")
@@ -500,7 +509,3 @@ class OnlineConsumer(AsyncWebsocketConsumer):
         for player in self.room_vars[self.room]["players"].values():
             player["yPos"] = self.board_height / 2 - self.player_height / 2
             player["score"] = 0
-            player["ballX"] = 0
-            player["ballY"] = 0
-            player["ballX"] = (self.board_width / 2) - (self.ball_width / 2)
-            player["ballY"] = (self.board_height / 2) - (self.ball_height / 2)
