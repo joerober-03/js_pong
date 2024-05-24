@@ -281,6 +281,13 @@ class GameLoop(AsyncWebsocketConsumer):
     #resets main values to default
     def reset_board(self):
         self.init_ball_values(self)
+        state_update["player1Pos"] = self.board_height / 2 - self.player_height / 2
+        state_update["player2Pos"] = self.board_height / 2 - self.player_height / 2
+        state_update["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
+        state_update["ball_xPos"] = (self.board_width / 2) - (self.ball_width / 2)
+        state_update["player1Score"] = 0
+        state_update["player2Score"] = 0
+        state_update["sound"] = False
         for player in room_vars[self.room]["players"].values():
             player["yPos"] = self.board_height / 2 - self.player_height / 2
             player["score"] = 0
