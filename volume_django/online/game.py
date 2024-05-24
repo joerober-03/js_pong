@@ -52,7 +52,7 @@ class GameLoop(AsyncWebsocketConsumer):
         self.player2 = self.find_player("right")
         self.room_var = room_vars[self.room]
 
-        ##timer which seems to slow down the start of the game
+        #timer which seems to slow down the start of the game
         # a = time.time()
         # c = 0
         # while 1:
@@ -76,7 +76,7 @@ class GameLoop(AsyncWebsocketConsumer):
         then = asyncio.get_event_loop().time()
 
         #the main loop
-        while len(self.room_var["players"]) == 2:
+        while len(self.room_var["players"]) == 2 and self.room in room_vars:
             # print(self.room)
             now = asyncio.get_event_loop().time()
             elapsed = now - then
@@ -101,6 +101,9 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #calculate player movement
     async def move_players(self):
+        if self.room not in room_vars:
+            return
+
         for player in self.room_var["players"].values():
             if player["moveUp"]:
                 if player["yPos"] - self.playerVelocity > 0:
@@ -115,6 +118,9 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #most of the game logic/calculations are here
     async def calculate_ball_changes(self):
+
+        if self.room not in room_vars:
+            return
 
         #some variables are set to hopefully reduce calculation time
         ball_yPos = self.room_var["ball_yPos"]
@@ -182,6 +188,8 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #chooses a random direction for the ball to start
     def ball_direction(self):
+        if self.room not in room_vars:
+            return
         r1 = random.randint(0, 1)
         if r1 == 0:
             r1 = self.ball_velocity
@@ -204,6 +212,8 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #function used in the Timer
     def assign_values(self, id, value):
+        if self.room not in room_vars:
+            return
         if id == 0:
             room_vars[self.room]["ball_velocityX"] = value
         else:
@@ -211,6 +221,8 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #sets ball values to default
     def init_ball_values(self):
+        if self.room not in room_vars:
+            return
         room_vars[self.room]["ball_xPos"] = (self.board_width / 2) - (self.ball_width / 2)
         room_vars[self.room]["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
         room_vars[self.room]["ball_velocityY"] = 0
@@ -218,6 +230,8 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #returns a player with the corresponding side
     def find_player(self, target_side):
+        if self.room not in room_vars:
+            return
         for player in room_vars[self.room]["players"].values():
             if player["side"] == target_side:
                 return player
@@ -226,6 +240,8 @@ class GameLoop(AsyncWebsocketConsumer):
     #resets main values to default
     def reset_board(self):
         self.init_ball_values()
+        if self.room not in room_vars:
+            return
         state_update[self.room]["player1Pos"] = self.board_height / 2 - self.player_height / 2
         state_update[self.room]["player2Pos"] = self.board_height / 2 - self.player_height / 2
         state_update[self.room]["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
