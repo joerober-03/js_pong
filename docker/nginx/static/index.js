@@ -111,27 +111,7 @@ function gameLoop() {
     animation_id = window.requestAnimationFrame(gameLoop);
 
     context.clearRect(0, 0, board.width, board.height);
-    // let now = performance.now();
-    // let elapsed = now - then;
 
-    //if (elapsed > fpsInterval && stop == false)
-        //then = now - (elapsed % fpsInterval);
-    // if (isalone == false)
-    // {
-    //     if (player1.yPos + player1.velocity > 0 && player1.yPos + player1.velocity + player_height < board_height)
-    //         player1.yPos += player1.velocity;
-    //     else if (!(player1.yPos + player1.velocity > 0))
-    //         player1.yPos = 0;
-    //     else
-    //         player1.yPos = board_height - player_height;
-
-    //     if (player2.yPos + player2.velocity > 0 && player2.yPos + player2.velocity + player_height < board_height)
-    //         player2.yPos += player2.velocity;
-    //     else if (!(player2.yPos + player2.velocity > 0))
-    //         player2.yPos = 0;
-    //     else
-    //         player2.yPos = board_height - player_height;
-    // }
     draw_board();
     if (isalone == true && player1.score != 5 && player2.score != 5)
     {
@@ -164,7 +144,6 @@ function gameLoop() {
         context.font = "100px serif";
         context.fillText(time_left, 575, 190);
     }
-    //window.cancelAnimationFrame(animation_id);
 }
 
 function fill_middle_lines() {
@@ -184,18 +163,10 @@ var lastSent = "none";
 
 function movePlayer(e) {
     if (e.key == 'w' && lastSent != "keyW") {
-        // if (side == "left")
-        //     player1.velocity -= playerVelocity;
-        // else
-        //     player2.velocity -= playerVelocity;
         ws.send(JSON.stringify({ type: "keyW", playerId: player_id }));
         lastSent = "keyW";
     }
     if (e.key == 's' && lastSent != "keyS") {
-        // if (side == "left")
-        //     player1.velocity += playerVelocity;
-        // else
-        //     player2.velocity += playerVelocity;
         ws.send(JSON.stringify({ type: "keyS", playerId: player_id }));
         lastSent = "keyS"
     }
@@ -204,18 +175,10 @@ function movePlayer(e) {
 //allows the player to stop if key is released
 function stopPlayer(e) {
     if (e.key == 'w' && lastSent != "keyStop") {
-        // if (side == "left")
-        //     player1.velocity = 0;
-        // else
-        //     player2.velocity = 0;
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
         lastSent = "keyStop"
     }
     if (e.key == 's' && lastSent != "keyStop") {
-        // if (side == "left")
-        //     player1.velocity = 0;
-        // else
-        //     player2.velocity = 0;
         ws.send(JSON.stringify({ type: "keyStop", playerId: player_id }));
         lastSent = "keyStop"  
     }
@@ -223,43 +186,16 @@ function stopPlayer(e) {
 
 ws.addEventListener("message", event => {
     let messageData = JSON.parse(event.data);
-    // console.log(messageData);
+    console.log(messageData);
     if (messageData.type === "stateUpdate") {
-        // getFPS().then(fps => document.getElementById("fps").textContent = "fps: " + Math.floor(fps));
-        // console.log(messageData.objects[0].ballX);
-        // time_after = performance.now();
-        // console.log(time_after - time_before);
-        // time_before = time_after;
-        // for (o = 0; o < messageData.objects.length; o++)
-        // {
-        //     if (messageData.objects[o].side == "left")
-        //     {
-        //         player1.yPos = messageData.objects[o].yPos;
-        //         player1.score = messageData.objects[o].score;
-        //         ball.yPos = messageData.objects[o].ballY;
-        //         ball.xPos = messageData.objects[o].ballX;
-        //     }
-        //     else
-        //     {
-        //         player2.yPos = messageData.objects[o].yPos;
-        //         player2.score = messageData.objects[o].score;
-        //         ball.yPos = messageData.objects[o].ballY;
-        //         ball.xPos = messageData.objects[o].ballX;
-        //     }
-        // }
         player1.yPos = messageData.objects.player1Pos;
         player2.yPos = messageData.objects.player2Pos;
         ball.xPos = messageData.objects.ball_xPos;
         ball.yPos = messageData.objects.ball_yPos;
-    }
-    else if (messageData.type === "score") {
-        if (messageData.objects.player === 1)
-            player1.score = messageData.objects.score;
-        else if (messageData.objects.player === 2)
-            player2.score = messageData.objects.score;
-    }
-    else if (messageData.type === "sound") {
-        play();
+        player1.score = messageData.objects.player1Score;
+        player2.score = messageData.objects.player2Score;
+        if (messageData.objects.sound == true)
+            play();
     }
     else if (messageData.type === "playerNum") {
         if (messageData.num === 2)
