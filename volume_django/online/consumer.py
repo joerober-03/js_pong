@@ -48,6 +48,7 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
         self.room = f"{self.scope['url_route']['kwargs']['room_name']}"
         self.player_id = str(uuid.uuid4())
         self.room_name = f"room_{self.scope['url_route']['kwargs']['room_name']}"
+        self.game = GameLoop()
 
         #adds player to the room layer
         await self.channel_layer.group_add(self.room_name, self.channel_name)
@@ -63,6 +64,18 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
                     "ball_yPos" : (self.board_height / 2) - (self.ball_height / 2),
                     "ball_velocityY" : 0,
                     "ball_velocityX" : 0,
+                }
+        
+        if self.room not in state_update:
+            async with self.update_lock:
+                state_update[self.room] = {
+                    "player1Pos": self.board_height / 2 - self.player_height / 2,
+                    "player2Pos": self.board_height / 2 - self.player_height / 2,
+                    "ball_yPos": (self.board_height / 2) - (self.ball_height / 2),
+                    "ball_xPos": (self.board_width / 2) - (self.ball_width / 2),
+                    "player1Score": 0,
+                    "player2Score": 0,
+                    "sound": True,
                 }
 
         #adds players to the room
@@ -101,7 +114,7 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
 
         #starts the initialization of the game loop
         if not room_vars[self.room]["running"]:
-            init = asyncio.create_task(GameLoop.game_loop(GameLoop, self.room))
+            init = asyncio.create_task(self.game.game_loop(self.room))
         if len(room_vars[self.room]["players"]) == 2:
             await self.channel_layer.group_send(
                 self.room_name,
@@ -154,7 +167,7 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
                 {"type": "player_num", "objects": 1},
             )
 
-            GameLoop.reset_board(GameLoop)
+            self.game.reset_board()
             
             #sends an update to the other player so that the board looks reset on the frontend
             await self.channel_layer.group_send(
@@ -168,6 +181,9 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
                 await self.delete_room()
                 if self.room in room_vars:
                     del room_vars[self.room]
+            async with self.update_lock:
+                if self.room in state_update:
+                    del state_update[self.room]
 
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
@@ -254,9 +270,9 @@ class OnlineConsumer(AsyncJsonWebsocketConsumer):
         while len(room_vars[self.room]["players"]) == 2:
             await self.channel_layer.group_send(
                 self.room_name,
-                {"type": "state_update", "objects": state_update},
+                {"type": "state_update", "objects": state_update[self.room]},
             )
-            if state_update["sound"]:
-                state_update["sound"] = False
+            if state_update[self.room]["sound"]:
+                state_update[self.room]["sound"] = False
 
             await asyncio.sleep(1 / 60)

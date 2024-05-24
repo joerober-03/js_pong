@@ -10,45 +10,13 @@ import time
 from threading import Timer
 #models aka Room
 from online.models import *
+#used for the class
 from channels.generic.websocket import AsyncWebsocketConsumer
 #other vars
 # import game_struct
 from .game_struct import room_vars, state_update
 
-# #currently not used
-#     async def game_loop_init(self):
-#         #waits for a second player to enter the room
-#         while self.room in room_vars and len(room_vars[self.room]["players"]) != 2:
-#             await asyncio.sleep(0.03)
 
-#         #tells the javascript side that another player has entered the room
-#         await self.send_json({"type": "playerNum", "num": 2})
-        
-#         #countdown at the start of the game
-#         self.player1 = self.find_player("left")
-#         self.player2 = self.find_player("right")
-#         self.room_var = room_vars[self.room]
-#         a = time.time()
-#         c = 0
-#         while 1:
-#             b = time.time()
-#             b = 3 - math.floor(b - a)
-#             if b != c:
-#                 await self.send(
-#                     text_data=rapidjson.dumps({"type": "countdown", "left": b})
-#                 )
-#             c = b
-#             if b == 0:
-#                 break
-#             await asyncio.sleep(0.03)
-
-#         #checks if room still exists then launch the main game loop
-#         if self.room in room_vars:
-#             if room_vars[self.room]["players"][self.player_id]["side"] == "left":
-#                 await self.game_loop()
-#             # game_loo = asyncio.create_task(self.game_loop())
-#             # else:
-#                 # return
 class GameLoop(AsyncWebsocketConsumer):
     room = ""
 
@@ -80,8 +48,8 @@ class GameLoop(AsyncWebsocketConsumer):
             return
 
         #variables are declared before start of game to hopefully reduce calculation time
-        self.player1 = self.find_player(self, "left")
-        self.player2 = self.find_player(self, "right")
+        self.player1 = self.find_player("left")
+        self.player2 = self.find_player("right")
         self.room_var = room_vars[self.room]
 
         ##timer which seems to slow down the start of the game
@@ -100,8 +68,8 @@ class GameLoop(AsyncWebsocketConsumer):
         #     await asyncio.sleep(0.03)
 
         #initializes ball direction/position
-        self.init_ball_values(self)
-        self.ball_direction(self)
+        self.init_ball_values()
+        self.ball_direction()
 
         #initialize fps restriction
         fpsInterval = 1.0 / 60.0
@@ -109,50 +77,27 @@ class GameLoop(AsyncWebsocketConsumer):
 
         #the main loop
         while len(self.room_var["players"]) == 2:
-
-            #the 60 fps rule
+            # print(self.room)
             now = asyncio.get_event_loop().time()
             elapsed = now - then
             if (elapsed > fpsInterval):
                 then = now - (elapsed % fpsInterval)
 
                 #player movement
-                await self.move_players(self)
-                # move = asyncio.create_task(self.move_players())
+                await self.move_players()
 
                 #calculate ball collisions
-                await self.calculate_ball_changes(self)
-                # move_ball = asyncio.create_task(self.calculate_ball_changes())
-
-                # print("aaaa", len(asyncio.all_tasks()))
-                # tasks = asyncio.all_tasks()
-                # print(f"Number of tasks: {len(tasks)}")
-
-                # for task in tasks:
-                #     print(task)
+                await self.calculate_ball_changes()
                 
-                state_update["player1Pos"] = self.player1["yPos"]
-                state_update["player2Pos"] = self.player2["yPos"]
-                state_update["ball_yPos"] = self.room_var["ball_yPos"]
-                state_update["ball_xPos"] = self.room_var["ball_xPos"]
-                state_update["player1Score"] = self.player1["score"]
-                state_update["player2Score"] = self.player2["score"]
-                #the main json sent to the javascript with the players pos as well as ball pos
-                # if self.room_var["players"][self.player_id]["side"] == "left":
-                # await self.channel_layer.group_send(
-                #     self.room_name,
-                #     {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
-                # )
-                # test = asyncio.create_task(self.aw_hell_nah_that_shit_aint_gonna_work_bruh())
+                state_update[self.room]["player1Pos"] = self.player1["yPos"]
+                state_update[self.room]["player2Pos"] = self.player2["yPos"]
+                state_update[self.room]["ball_yPos"] = self.room_var["ball_yPos"]
+                state_update[self.room]["ball_xPos"] = self.room_var["ball_xPos"]
+                state_update[self.room]["player1Score"] = self.player1["score"]
+                state_update[self.room]["player2Score"] = self.player2["score"]
 
                 #gives time to the rest of the processes to operate
                 await asyncio.sleep(fpsInterval)
-
-    # async def aw_hell_nah_that_shit_aint_gonna_work_bruh(self):
-    #     await self.channel_layer.group_send(
-    #         self.room_name,
-    #         {"type": "state_update", "objects": {"player1Pos": self.player1["yPos"], "player2Pos": self.player2["yPos"], "ball_yPos": self.room_var["ball_yPos"], "ball_xPos": self.room_var["ball_xPos"]}},
-    #     )
 
     #calculate player movement
     async def move_players(self):
@@ -194,7 +139,7 @@ class GameLoop(AsyncWebsocketConsumer):
                 else:
                     ball_velocityX += 0.5
                 
-                state_update["sound"] = True
+                state_update[self.room]["sound"] = True
 
                 
 
@@ -208,7 +153,7 @@ class GameLoop(AsyncWebsocketConsumer):
                 else:
                     ball_velocityX += 0.5
 
-                state_update["sound"] = True
+                state_update[self.room]["sound"] = True
 
         #checks if a player has scored
         if (ball_xPos + ball_velocityX < 0 or ball_xPos + ball_velocityX + self.ball_width > self.board_width):
@@ -223,9 +168,9 @@ class GameLoop(AsyncWebsocketConsumer):
             self.room_var["ball_velocityY"] = ball_velocityY
 
             #set ball starting values
-            self.init_ball_values(self)
+            self.init_ball_values()
             if self.player2["score"] != 5 and self.player1["score"] != 5:
-                self.ball_direction(self)
+                self.ball_direction()
         else:
             self.room_var["ball_xPos"] = ball_xPos
             self.room_var["ball_yPos"] = ball_yPos
@@ -251,8 +196,8 @@ class GameLoop(AsyncWebsocketConsumer):
         room_vars[self.room]["ball_velocityX"] = 0
 
         #this will change the speed after 1 second
-        r = Timer(1.0, self.assign_values, (self, 1, r2))
-        s = Timer(1.0, self.assign_values, (self, 0, r1))
+        r = Timer(1.0, self.assign_values, (1, r2))
+        s = Timer(1.0, self.assign_values, (0, r1))
 
         r.start()
         s.start()
@@ -280,14 +225,14 @@ class GameLoop(AsyncWebsocketConsumer):
 
     #resets main values to default
     def reset_board(self):
-        self.init_ball_values(self)
-        state_update["player1Pos"] = self.board_height / 2 - self.player_height / 2
-        state_update["player2Pos"] = self.board_height / 2 - self.player_height / 2
-        state_update["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
-        state_update["ball_xPos"] = (self.board_width / 2) - (self.ball_width / 2)
-        state_update["player1Score"] = 0
-        state_update["player2Score"] = 0
-        state_update["sound"] = False
+        self.init_ball_values()
+        state_update[self.room]["player1Pos"] = self.board_height / 2 - self.player_height / 2
+        state_update[self.room]["player2Pos"] = self.board_height / 2 - self.player_height / 2
+        state_update[self.room]["ball_yPos"] = (self.board_height / 2) - (self.ball_height / 2)
+        state_update[self.room]["ball_xPos"] = (self.board_width / 2) - (self.ball_width / 2)
+        state_update[self.room]["player1Score"] = 0
+        state_update[self.room]["player2Score"] = 0
+        state_update[self.room]["sound"] = False
         for player in room_vars[self.room]["players"].values():
             player["yPos"] = self.board_height / 2 - self.player_height / 2
             player["score"] = 0
