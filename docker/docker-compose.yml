@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  django:
+    container_name: django
+    depends_on:
+      - db
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ${SERVICE_NAME}
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - django:/home/transcendance/${SERVICE_NAME}
+    tty: true
+    networks:
+      - pong
+    init: true
+    restart: on-failure
+
+  db:
+    image: postgres:16.2
+    volumes:
+      - postgres:/var/lib/postgresql/data/
+    environment:
+      - "POSTGRES_HOST_AUTH_METHOD=trust"
+    networks:
+      - pong
+    restart: on-failure
+
+  nginx:
+    container_name: nginx
+    depends_on:
+      - django
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - nginx:/etc/nginx
+    networks:
+      - pong
+    env_file: .env
+    # tty: true
+    restart: on-failure
+  
+
+volumes:
+  django:
+    driver: local
+    driver_opts:
+      type: 'none' 
+      o: 'bind'
+      device: '/Users/joerober/Desktop/git/volume_django'
+  postgres:
+    driver: local
+    driver_opts:
+      type: 'none' 
+      o: 'bind'
+      device: '/Users/joerober/Desktop/git/volume_db'
+  nginx:
+    driver: local
+    driver_opts:
+      type: 'none' 
+      o: 'bind'
+      device: '/Users/joerober/Desktop/git/volume_nginx'
+
+networks:
+  pong:
+    driver: bridge
