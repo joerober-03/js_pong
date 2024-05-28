@@ -1,26 +1,48 @@
 version: "3.8"
 
 services:
-  django:
-    container_name: django
+  online:
+    container_name: online
     depends_on:
       - db
     build:
-      context: ./django
+      context: ./online
       dockerfile: Dockerfile
       args:
-        SERVICE_NAME: ${SERVICE_NAME}
+        SERVICE_NAME: ${SERVICE_NAME_ONLINE}
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
-      - django:/home/transcendance/${SERVICE_NAME}
+      - online:/home/transcendance/${SERVICE_NAME_ONLINE}
     tty: true
     networks:
       - pong
     init: true
     restart: on-failure
+
+  page:
+    container_name: page
+    depends_on:
+      - db
+    build:
+      context: ./page
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ${SERVICE_NAME_PAGE}
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - page:/home/transcendance/${SERVICE_NAME_PAGE}
+    tty: true
+    networks:
+      - pong
+    init: true
+    restart: on-failure
+
 
   db:
     image: postgres:16.2
@@ -35,7 +57,8 @@ services:
   nginx:
     container_name: nginx
     depends_on:
-      - django
+      - online
+      - page
     build:
       context: ./nginx
       dockerfile: Dockerfile
@@ -49,15 +72,14 @@ services:
     env_file: .env
     # tty: true
     restart: on-failure
-  
 
 volumes:
-  django:
+  online:
     driver: local
     driver_opts:
       type: 'none' 
       o: 'bind'
-      device: '/Users/joerober/Desktop/git/volume_django'
+      device: '/Users/joerober/Desktop/git/volume_online'
   postgres:
     driver: local
     driver_opts:
@@ -70,6 +92,12 @@ volumes:
       type: 'none' 
       o: 'bind'
       device: '/Users/joerober/Desktop/git/volume_nginx'
+  page:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: '/Users/joerober/Desktop/git/volume_page'
 
 networks:
   pong:
