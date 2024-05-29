@@ -56,7 +56,7 @@ export function online_game(new_ws) {
     ws = new_ws;
     ws.addEventListener("message", event => {
         let messageData = JSON.parse(event.data);
-        console.log(messageData);
+        // console.log(messageData);
         if (messageData.type === "stateUpdate") {
             player1.yPos = messageData.objects.player1Pos;
             player2.yPos = messageData.objects.player2Pos;

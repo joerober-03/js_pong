@@ -1,6 +1,27 @@
 version: "3.8"
 
 services:
+  page:
+    container_name: page
+    depends_on:
+      - db
+    build:
+      context: ./page
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ${SERVICE_NAME_PAGE}
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    volumes:
+      - page:/home/transcendance/${SERVICE_NAME_PAGE}
+    tty: true
+    networks:
+      - pong
+    init: true
+    restart: on-failure
+
   online:
     container_name: online
     depends_on:
@@ -22,21 +43,21 @@ services:
     init: true
     restart: on-failure
 
-  page:
-    container_name: page
+  bot:
+    container_name: bot
     depends_on:
       - db
     build:
-      context: ./page
+      context: ./bot
       dockerfile: Dockerfile
       args:
-        SERVICE_NAME: ${SERVICE_NAME_PAGE}
+        SERVICE_NAME: ${SERVICE_NAME_BOT}
     env_file:
       - .env
     expose:
-      - "8000"
+      - "8002"
     volumes:
-      - page:/home/transcendance/${SERVICE_NAME_PAGE}
+      - bot:/home/transcendance/${SERVICE_NAME_BOT}
     tty: true
     networks:
       - pong
@@ -59,6 +80,7 @@ services:
     depends_on:
       - online
       - page
+      - bot
     build:
       context: ./nginx
       dockerfile: Dockerfile
@@ -98,6 +120,12 @@ volumes:
       type: "none"
       o: "bind"
       device: '/Users/joerober/Desktop/git/volume_page'
+  bot:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: '/Users/joerober/Desktop/git/volume_bot'
 
 networks:
   pong:

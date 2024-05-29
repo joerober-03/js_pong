@@ -1,7 +1,6 @@
 import { sleep } from './utils.js';
 import { GameMode } from './main.js';
 import { drawBrackets, enterNicknames } from './brackets.js';
-import { online_game } from '../online/index.js';
 
 document.getElementById("hamburger-icon").addEventListener("click", function() {
 	document.getElementById("hamburger-icon").classList.toggle("active");
@@ -60,32 +59,7 @@ document.getElementById("main-buttons").addEventListener("click", function() {
 			document.getElementById("login-box").style.display = "block";
 			document.getElementById("login-box").classList.add("shown");
 			document.getElementById("GO_O").addEventListener("click", function() {
-				document.getElementById("login-box").style.display = "none";
-				const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-				let room_selected = document.querySelector("#room_name_input").value;
-				let ws;
-				fetch("https://" + window.location.host + "/room/", {
-					method: "POST",
-					body: JSON.stringify({
-						room: room_selected,
-					}),
-					headers: {
-						"Content-type": "application/json; charset=UTF-8",
-						"X-CSRFToken": csrftoken,
-					}
-				})
-				.then((response) => {
-					return response.json();
-				})
-				.then((data) => {
-					let code = data.status;
-					if (code == 500)
-						console.log("error: " + data.error);
-					else {
-						ws = new WebSocket("wss://" + window.location.host + "/ws/notification/" + data.room_name + "/");
-						online_game(ws);
-					}
-				})
+				GameMode(3);
 			});
 		}
 		else if (button_id === "tournoi-mode") {
