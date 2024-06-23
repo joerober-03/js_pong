@@ -22,7 +22,7 @@
 	},
 	"main": {
 		"title": "ΠΟΝΓΚ",
-		"pvp_mode": "Παίκτης εναντίον Παίκτη",
+		"pvp_mode": "PVP",
 		"cpu_mode": "CPU",
 		"tourney_mode": "Τουρνουά",
 		"online_mode": "Διαδικτυακά"
@@ -65,7 +65,8 @@
 	"users_lists": {
 		"ulist_title": "ΛΙΣΤΑ ΧΡΗΣΤΩΝ",
 		"flist_title": "ΛΙΣΤΑ ΦΙΛΩΝ",
-		"requests_title": "ΑΙΤΗΜΑΤΑ ΦΙΛΙΑΣ"
+		"requests_title": "ΑΙΤΗΜΑΤΑ ΦΙΛΙΑΣ",
+		"not_allowed": "συνδεθείτε για να αποκτήσετε πρόσβαση"
 	},
 	"verify_otp": {
 		"enter_otp": "Εισάγετε OTP",

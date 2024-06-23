@@ -30,24 +30,16 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
         // Load the saved language preference on settings page load
-        // const savedLanguage = localStorage.getItem('preferredLanguage');
-        var savedLanguage = 'en';
-        if (userIsConnected == true)
-            savedLanguage = await fetchLanguage();
+        const savedLanguage = localStorage.getItem('preferredLanguage');
+        // var savedLanguage = 'en';
+        // if (userIsConnected == true)
+        //     savedLanguage = await fetchLanguage();
         console.log("language in db:", savedLanguage);
         if (savedLanguage) {
             document.getElementById('language-select').value = savedLanguage;
         } else {
             console.log('No saved language preference found');
         }
-
-        document.getElementById('language-select').addEventListener('change', async function () {
-            const selectedLanguage = this.value;
-            // localStorage.setItem('preferredLanguage', selectedLanguage);
-            // console.log('Language preference saved:', selectedLanguage);
-            await changeLanguage(selectedLanguage);
-            loadLanguage(selectedLanguage);
-        });
     }
 
     uploadPicture = async function () {

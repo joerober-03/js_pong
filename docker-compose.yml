@@ -206,7 +206,7 @@ volumes:
     driver_opts:
       type: "none"
       o: "bind"
-      device: "${PWD}/database"
+      device: "${PWD}/database/db_transcendence"
 
 networks:
   transcendance:
